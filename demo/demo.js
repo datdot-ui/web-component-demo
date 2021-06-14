@@ -1,12 +1,43 @@
 const modal = require('..')
 const bel = require('bel')
 const csjs = require('csjs-inject')
-const createAccount = require('./node_modules/CreateAccount')
+const { newAccountOpt, runPlanOpt } = require('options')
 
 function demoApp() {
-    
-    const app = bel`<div class="${css.container}">${modal({header: 'Create new account', body: createAccount() })}</div>`
+    const recipients = []
+    const createNewAccount = modal(newAccountOpt( createAccountProtocol('create-account') ), createAccountProtocol('create-new-account'))
+    const runPlan = modal( runPlanOpt( runPlanProtocol('run-plan') ), runPlanProtocol('run-plan') )
+    const app = bel`
+    <div class="${css.container}">
+        <section>
+            <h1>Step modal</h1>
+            ${createNewAccount}
+        </section>
+        <section>
+            <h1>Default modal</h1>
+            ${runPlan}
+        </section>
+        
+    </div>`
+
     return app
+
+    function runPlanProtocol(name) {
+        return protocol(name)
+    }
+
+    function createAccountProtocol(name) {
+        return protocol(name)
+    }
+
+    function protocol(name) {
+        return sender => {
+            recipients[name] = sender
+            return (msg) => {
+                console.log( msg );
+            }
+        }
+    }
 }
 
 const css = csjs`
@@ -27,6 +58,8 @@ const css = csjs`
   --color-green-pigment: #109B36;
   --color-chrome-yellow: #FFA700;
   --color-bright-yellow-crayola: #FFA72A;
+  --color-purple: #B700FF;
+  --color-medium-purple: #B066FF;
   --color-grey33: #333;
   --color-grey66: #666;
   --color-grey70: #707070;
@@ -46,13 +79,14 @@ const css = csjs`
   --define-font: *---------------------------------------------*;
   --snippet-font: Segoe UI Mono, Monospace, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas;
   --size12: 1.2rem;
-  --sizet14: 1.4rem;
+  --size14: 1.4rem;
   --size16: 1.6rem;
   --size18: 1.8rem;
   --size20: 2rem;
   --size22: 2.2rem;
   --size24: 2.4rem;
   --size26: 2.6rem;
+  --size28: 2.8rem;
   --size30: 3rem;
   --size32: 3.2rem;
   --size36: 3.6rem;
@@ -86,6 +120,7 @@ body {
     grid-template-rows: auto;
     grid-template-columns: 90%;
     justify-content: center;
+    margin-top: 20px;
 }
 `
 

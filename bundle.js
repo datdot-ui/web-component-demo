@@ -2,12 +2,43 @@
 const modal = require('..')
 const bel = require('bel')
 const csjs = require('csjs-inject')
-const createAccount = require('./node_modules/CreateAccount')
+const { newAccountOpt, runPlanOpt } = require('options')
 
 function demoApp() {
-    
-    const app = bel`<div class="${css.container}">${modal({header: 'Create new account', body: createAccount() })}</div>`
+    const recipients = []
+    const createNewAccount = modal(newAccountOpt( createAccountProtocol('create-account') ), createAccountProtocol('create-new-account'))
+    const runPlan = modal( runPlanOpt( runPlanProtocol('run-plan') ), runPlanProtocol('run-plan') )
+    const app = bel`
+    <div class="${css.container}">
+        <section>
+            <h1>Step modal</h1>
+            ${createNewAccount}
+        </section>
+        <section>
+            <h1>Default modal</h1>
+            ${runPlan}
+        </section>
+        
+    </div>`
+
     return app
+
+    function runPlanProtocol(name) {
+        return protocol(name)
+    }
+
+    function createAccountProtocol(name) {
+        return protocol(name)
+    }
+
+    function protocol(name) {
+        return sender => {
+            recipients[name] = sender
+            return (msg) => {
+                console.log( msg );
+            }
+        }
+    }
 }
 
 const css = csjs`
@@ -28,6 +59,8 @@ const css = csjs`
   --color-green-pigment: #109B36;
   --color-chrome-yellow: #FFA700;
   --color-bright-yellow-crayola: #FFA72A;
+  --color-purple: #B700FF;
+  --color-medium-purple: #B066FF;
   --color-grey33: #333;
   --color-grey66: #666;
   --color-grey70: #707070;
@@ -47,13 +80,14 @@ const css = csjs`
   --define-font: *---------------------------------------------*;
   --snippet-font: Segoe UI Mono, Monospace, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas;
   --size12: 1.2rem;
-  --sizet14: 1.4rem;
+  --size14: 1.4rem;
   --size16: 1.6rem;
   --size18: 1.8rem;
   --size20: 2rem;
   --size22: 2.2rem;
   --size24: 2.4rem;
   --size26: 2.6rem;
+  --size28: 2.8rem;
   --size30: 3rem;
   --size32: 3.2rem;
   --size36: 3.6rem;
@@ -87,49 +121,214 @@ body {
     grid-template-rows: auto;
     grid-template-columns: 90%;
     justify-content: center;
+    margin-top: 20px;
 }
 `
 
 document.body.append( demoApp() )
-},{"..":27,"./node_modules/CreateAccount":2,"bel":4,"csjs-inject":7}],2:[function(require,module,exports){
+},{"..":30,"bel":6,"csjs-inject":9,"options":4}],2:[function(require,module,exports){
 const bel = require('bel')
+const icon = require('../../src/node_modules/icon')
 
 module.exports = createAccount
 
-function createAccount() {
-    const createAccount = bel`
-    <div class="form-field" data-name="create-account">
+function createAccount(protocol) {
+    const sender = protocol( get )
+    let address = 'hyper://'
+    const input = bel`<input type="text" name="custom address" arial-label="Custom address" aria-required="true" value="${address}">`
+    const customAddress = bel`<div class="col2 address">${input}</div>`
+    const show1 = new icon({name: 'show'})
+    const show2 = new icon({name: 'show'})
+    const showButton1 = bel`<button role="button" data-state="hide" aria-label="show password" aria-live="assertive" onclick=${(e) => toggleIcon(showButton1, 'password')}>${show1}</button>`
+    const showButton2 = bel`<button role="button" data-state="hide" aria-label="show password" aria-live="assertive" onclick=${(e) => toggleIcon(showButton2, 'confirm password')}>${show2}</button>`
+    const createAccountElement = bel`
+    <div class="form-field" data-step="create-account" aria-label="Create new account">
         <div class="row">
-            <select>
-                <option selected>Main net</option>
-                <option>Test net</option>
-                <option>Custom</option>
-            </select>
             <label for="chain network">Chain network</label>
+            <select role="select" aria-label="Chain network" aria-live="assertive" data-state="main net" onchange=${(e) => handleOnChnage(e.target, e.target.value)}>
+                <option role="option" aria-posinset="1" selected>Main net</option>
+                <option role="option" aria-posinset="2">Test net</option>
+                <option role="option" aria-posinset="3">Custom</option>
+            </select>
         </div>
         <div class="row">
-            <input type="text" name="address" aria-label="address" value="1MCsCUDzzJoGKHgBf2dE76BEWg3emZd9SS" disabled>
             <label for="address">Address</label>
+            <span class="address" aria-label="Address">1MCsCUDzzJoGKHgBf2dE76BEWg3emZd9SS</span>
         </div>
         <div class="row">
-            <input type="text" name="account name" aria-label="account name" value="Host">
-            <label for="account name">Account name</label>
+            <label for="account">Account name</label>
+            <input role="input" type="text" name="account" aria-label="Account name" aria-required="true">
         </div>
         <div class="row">
-            <input type="text" name="password" aria-label="password">
             <label for="password">Password</label>
-            <span>min 8 chars</span>
+            <div class="col2">
+                <input role="input" type="password" name="password" aria-label="Password" aria-required="true">
+                ${showButton1}
+            </div>
+            <span class="limit">min 8 chars</span>
         </div>
         <div class="row">
-            <input type="text" name="confirm password" aria-label="confirm password">
             <label for="confirm password">Confirm password</label>
+            <div class="col2">
+                <input role="input" type="password" name="confirm password" aria-label="Confirm password" aria-required="true">
+                ${showButton2}
+            </div>
         </div>
     </div>
     `
-    
-    return createAccount
+    return createAccountElement
+
+    function handleOnChnage(target, val) {
+        customAddress.remove()
+        if (val === 'Custom') {
+            target.dataset.state = val.toLowerCase()
+            const parent = target.parentElement
+            parent.append(customAddress)
+        }
+    }
+
+    function toggleIcon(el, target) {
+        const iconHide = new icon({name: 'hide'})
+        const iconShow = new icon({name: 'show'})
+        const state = el.dataset.state === 'hide' ? 'show' : 'hide'
+        const toggleIcon = state === 'hide' ? iconShow : iconHide 
+        const type = state === 'show' ? 'text' : 'password'
+        const label = state === 'show' ? 'hide password' : 'show password'
+        el.dataset.state = state
+        el.ariaLabel = label
+        el.replaceChild(toggleIcon, el.querySelector('.icon'))
+        createAccountElement.querySelector(`[name="${target}"]`).type = type
+        sender({flow: 'create-account', state, body: target })
+    }
+
+    function get (msg) {
+        console.log(msg);
+    }
 }
-},{"bel":4}],3:[function(require,module,exports){
+
+},{"../../src/node_modules/icon":34,"bel":6}],3:[function(require,module,exports){
+const bel = require('bel')
+
+module.exports = runPlan
+
+function runPlan (plan = null, protocol) {
+    const send = protocol (get)
+    const cancelButton = bel`<button class="btn" data-action="cancel" aria-label="Cancel" onclick="${() => handleCancel()}">Cancel</button>`
+    const confirmButton = bel`<button class="btn" data-action="confirm" aria-label="Confirm" onclick="${() => handleConfirm()}">Confirm</button>`
+    const el = bel`
+    <section class="row" data-action="run-plan" aria-label="run plan"> 
+        <p>
+            Do you determine to be a sponsor for <strong>${plan}</strong>?<br/>
+            This action will be continuous paying via your schedule.
+        </p>
+        <div class="actions" role="action">
+            ${cancelButton}${confirmButton}
+        </div>
+    </section>`
+
+    return el
+
+    function handleCancel () {
+        console.log('cancel');
+    }
+
+    function handleConfirm () {
+        console.log('confirm');
+    }
+
+    function get (msg) {
+        console.log( msg );
+    }
+}
+},{"bel":6}],4:[function(require,module,exports){
+const createAccount = require('./CreateAccount')
+const runPlan = require('./RunPlan')
+
+const newAccountOpt = (protocol) => {
+    return {
+        name: 'create new account',
+        header: 'Create new account',
+        body: createAccount( protocol ),
+        ui: 'step-modal',
+        theme: {
+            // style: `
+            // :host(i-modal[data-ui="custom"]) {
+            //     --modal-bgColor: hsl(29, 100%, 70%)
+            // }
+            // `,
+            // props: {
+            //     bgColor: 'var(--color-greyE2)'
+            // },
+            header: {
+                style: `
+                /* :host(i-header[data-ui="step-modal"]) {
+                    --modal-header-bgColor: hsl(202, 100%, 50%);
+                } */
+                :host(i-header[data-ui="custom"]) {
+                    --modal-header-bgColor: hsl(29, 100%, 50%);
+                    --modal-header-padding: 20px;
+                }
+                :host(i-header[data-ui="custom"]) h1 {
+                    --modal-header-color: hsl(50, 100%, 50%);
+                }
+                `,
+                // props: {
+                //     size: 'var(--size28)',
+                //     color: 'var(--color-black)',
+                //     bgColor: 'var(--color-purple)'
+                // }
+            },
+            body: {
+                style: `
+                :host(i-body[data-ui="custom"]) {
+                    background-color: hsl(330, 2%, 22%);
+                    padding: 30px 20px;
+                }
+                :host(i-body[data-ui="custom"]) label {
+                    color: hsl(0, 0%, 100%);
+                }
+                :host(i-body[data-ui="custom"]) span {
+                    color: hsl(0, 0%, 60%);
+                }
+                :host(i-body[data-ui="custom"]) .row:focus-within label {
+                    --label-focus: hsl(29, 100%, 58%);
+                }
+                :host(i-body[data-ui="custom"]) input[name="address"]:disabled {
+                    color: hsl(0, 0%, 60%);
+                }
+                :host(i-body[data-ui="custom"]) input:focus, 
+                :host(i-body[data-ui="custom"]) .col2:focus-within,
+                :host(i-body[data-ui="custom"]) select:focus {
+                    --shadow-blur: 12px;
+                    --shadow-color: hsla(50, 100%, 50%, 0.5);
+                }
+                `,
+                // props: {
+                //     size: 'var(--size14)',
+                //     labelSize: 'var(--size12)',
+                //     labelColor: 'var(--color-blue)',
+                //     labelFocusColor: 'var(--color-purple)',
+                //     inputColor: 'var(--color-black)',
+                //     inputBorderColor: 'var(--color-blue)',
+                //     inputFocusColor: 'var(--color-purple)',
+                //     borderColor: 'var(--color-medium-purple)',
+                // }
+            }
+        }
+    }
+}
+
+const runPlanOpt = (protocol) => {
+    return {
+        name: 'run plan',
+        header: 'Your small step is our big step',
+        body: runPlan('plan1', protocol),
+        ui: 'default'
+    }
+}
+
+module.exports = { newAccountOpt, runPlanOpt }
+},{"./CreateAccount":2,"./RunPlan":3}],5:[function(require,module,exports){
 var trailingNewlineRegex = /\n[\s]+$/
 var leadingNewlineRegex = /^\n[\s]+/
 var trailingSpaceRegex = /[\s]+$/
@@ -262,7 +461,7 @@ module.exports = function appendChild (el, childs) {
   }
 }
 
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 var hyperx = require('hyperx')
 var appendChild = require('./appendChild')
 
@@ -363,7 +562,7 @@ module.exports = hyperx(belCreateElement, {comments: true})
 module.exports.default = module.exports
 module.exports.createElement = belCreateElement
 
-},{"./appendChild":3,"hyperx":25}],5:[function(require,module,exports){
+},{"./appendChild":5,"hyperx":28}],7:[function(require,module,exports){
 (function (global){(function (){
 'use strict';
 
@@ -382,12 +581,12 @@ function csjsInserter() {
 module.exports = csjsInserter;
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"csjs":10,"insert-css":26}],6:[function(require,module,exports){
+},{"csjs":12,"insert-css":29}],8:[function(require,module,exports){
 'use strict';
 
 module.exports = require('csjs/get-css');
 
-},{"csjs/get-css":9}],7:[function(require,module,exports){
+},{"csjs/get-css":11}],9:[function(require,module,exports){
 'use strict';
 
 var csjs = require('./csjs');
@@ -396,17 +595,17 @@ module.exports = csjs;
 module.exports.csjs = csjs;
 module.exports.getCss = require('./get-css');
 
-},{"./csjs":5,"./get-css":6}],8:[function(require,module,exports){
+},{"./csjs":7,"./get-css":8}],10:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib/csjs');
 
-},{"./lib/csjs":14}],9:[function(require,module,exports){
+},{"./lib/csjs":16}],11:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib/get-css');
 
-},{"./lib/get-css":18}],10:[function(require,module,exports){
+},{"./lib/get-css":20}],12:[function(require,module,exports){
 'use strict';
 
 var csjs = require('./csjs');
@@ -416,7 +615,7 @@ module.exports.csjs = csjs;
 module.exports.noScope = csjs({ noscope: true });
 module.exports.getCss = require('./get-css');
 
-},{"./csjs":8,"./get-css":9}],11:[function(require,module,exports){
+},{"./csjs":10,"./get-css":11}],13:[function(require,module,exports){
 'use strict';
 
 /**
@@ -438,7 +637,7 @@ module.exports = function encode(integer) {
   return str;
 };
 
-},{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 'use strict';
 
 var makeComposition = require('./composition').makeComposition;
@@ -482,7 +681,7 @@ function getClassChain(obj) {
   return acc;
 }
 
-},{"./composition":13}],13:[function(require,module,exports){
+},{"./composition":15}],15:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -562,7 +761,7 @@ function ignoreComposition(values) {
  */
 function Composition() {}
 
-},{}],14:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 
 var extractExtends = require('./css-extract-extends');
@@ -640,7 +839,7 @@ function without(obj, unwanted) {
   }, {});
 }
 
-},{"./build-exports":12,"./composition":13,"./css-extract-extends":15,"./css-key":16,"./extract-exports":17,"./scopeify":23}],15:[function(require,module,exports){
+},{"./build-exports":14,"./composition":15,"./css-extract-extends":17,"./css-key":18,"./extract-exports":19,"./scopeify":25}],17:[function(require,module,exports){
 'use strict';
 
 var makeComposition = require('./composition').makeComposition;
@@ -693,7 +892,7 @@ function getClassName(str) {
   return trimmed[0] === '.' ? trimmed.substr(1) : trimmed;
 }
 
-},{"./composition":13}],16:[function(require,module,exports){
+},{"./composition":15}],18:[function(require,module,exports){
 'use strict';
 
 /**
@@ -703,7 +902,7 @@ function getClassName(str) {
 
 module.exports = ' css ';
 
-},{}],17:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 var regex = require('./regex');
@@ -730,7 +929,7 @@ function getExport(css, regex) {
   return prop;
 }
 
-},{"./regex":20}],18:[function(require,module,exports){
+},{"./regex":22}],20:[function(require,module,exports){
 'use strict';
 
 var cssKey = require('./css-key');
@@ -739,7 +938,7 @@ module.exports = function getCss(csjs) {
   return csjs[cssKey];
 };
 
-},{"./css-key":16}],19:[function(require,module,exports){
+},{"./css-key":18}],21:[function(require,module,exports){
 'use strict';
 
 /**
@@ -757,7 +956,7 @@ module.exports = function hashStr(str) {
   return hash >>> 0;
 };
 
-},{}],20:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 'use strict';
 
 var findClasses = /(\.)(?!\d)([^\s\.,{\[>+~#:)]*)(?![^{]*})/.source;
@@ -773,7 +972,7 @@ module.exports = {
   ignoreComments: ignoreComments,
 };
 
-},{}],21:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var ignoreComments = require('./regex').ignoreComments;
 
 module.exports = replaceAnimations;
@@ -804,7 +1003,7 @@ function replaceAnimations(result) {
   return result;
 }
 
-},{"./regex":20}],22:[function(require,module,exports){
+},{"./regex":22}],24:[function(require,module,exports){
 'use strict';
 
 var encode = require('./base62-encode');
@@ -818,7 +1017,7 @@ module.exports = function fileScoper(fileSrc) {
   }
 };
 
-},{"./base62-encode":11,"./hash-string":19}],23:[function(require,module,exports){
+},{"./base62-encode":13,"./hash-string":21}],25:[function(require,module,exports){
 'use strict';
 
 var fileScoper = require('./scoped-name');
@@ -859,7 +1058,35 @@ function scopify(css, ignores) {
   return replaceAnimations(result);
 }
 
-},{"./regex":20,"./replace-animations":21,"./scoped-name":22}],24:[function(require,module,exports){
+},{"./regex":22,"./replace-animations":23,"./scoped-name":24}],26:[function(require,module,exports){
+module.exports = svg
+
+function svg(opts) {
+    var { css = null, path }  = opts
+    
+    const el = document.createElement('div')
+    
+    async function load(done) {
+        const res = await fetch(path)
+        const parse = document.createElement('div')
+
+        if (res.status == 200) {
+            let graphic = await res.text()
+            parse.innerHTML = graphic
+            return done(null, parse.children[0])
+        }
+        throw new Error(res.status)
+    }
+
+    load((err, svg) => {
+        if (err) console.error(err)
+        if (css) el.className = css
+        el.append(svg)
+    })
+    
+    return el
+}   
+},{}],27:[function(require,module,exports){
 module.exports = attributeToProperty
 
 var transform = {
@@ -880,7 +1107,7 @@ function attributeToProperty (h) {
   }
 }
 
-},{}],25:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 var attrToProp = require('hyperscript-attribute-to-property')
 
 var VAR = 0, TEXT = 1, OPEN = 2, CLOSE = 3, ATTR = 4
@@ -1177,7 +1404,7 @@ var closeRE = RegExp('^(' + [
 ].join('|') + ')(?:[\.#][a-zA-Z0-9\u007F-\uFFFF_:-]+)*$')
 function selfClosing (tag) { return closeRE.test(tag) }
 
-},{"hyperscript-attribute-to-property":24}],26:[function(require,module,exports){
+},{"hyperscript-attribute-to-property":27}],29:[function(require,module,exports){
 var inserted = {};
 
 module.exports = function (css, options) {
@@ -1201,161 +1428,497 @@ module.exports = function (css, options) {
     }
 };
 
-},{}],27:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 const bel = require('bel')
 const iheader = require('i-header')
 const ibody = require('i-body')
 const nocontent = require('i-nocontent')
 const styleSheet = require('supportCSSStyleSheet')
+const icon = require('icon')
 
 // const myElement = require('test')
 module.exports = component
 
-function component({header, body = nocontent(), name = 'modal'}) {
-    const modal = document.createElement('i-modal')
-    const root = modal.attachShadow({mode: 'closed'})
-    const el = bel`
-    <div class="i-modal" arial-label="i-modal" tabindex="0">
-        ${iheader({label: 'create new account', content: header})}
-        ${ibody({label: 'modal body', content: body === '' ? nocontent() : body })}
-    </div>`
-    styleSheet(root, style)
-    root.append(el)
-    return modal
-}
+function component({name = 'modal', flow, header, body = nocontent(), ui = 'default', theme }, protocol) {
+    const widget = 'ui-modal'
+    const sender = protocol( get )
+    // insert CSS style
+    const customStyle = theme ? theme.style : ''
+    // set CSS variables
+    if (theme && theme.props) {
+        var { color, bgColor, borderWidth, borderStyle, borderColor, padding } = theme.props
+    }
+    // const send = protocol( get )
+    function layout(style) {
+        const modal = document.createElement('i-modal')
+        const root = modal.attachShadow({mode: 'closed'})
+        modal.dataset.ui = ui
+        const closeIcon = new icon({name: 'cross'})
+        const close = bel`<button role="button" data-ui="close" aria-label="close modal" aria-controls="close modal" onclick="${() => handleClose(modal)}">${closeIcon}</button>`
+        const el = bel`
+        <div role="dialog" class="i-modal" aria-label="${ui}">
+            ${ui === 'help-modal' ? close : null}
+            ${iheader({label: 'create new account', content: header, ui, theme: theme ? theme.header : void 0 })}
+            ${ibody({label: 'modal body', content: body === '' ? nocontent() : body, ui, theme: theme ? theme.body : void 0 })}
+        </div>`
+        styleSheet(root, style)
+        root.append(el)
+        return modal
+    }
 
-const style = `
-:host(i-modal) {
-    --modal-margin-top: 4px;
-    display: grid;
-    margin-top: var(--modal-margin-top);
+    function handleClose (modal) {
+        modal.remove()
+        return sender({flow: flow ? `${flow}/${widget}/${ui}` : `${widget}/${ui}`, from: name, type: 'closed'})
+    }
+
+    function get(m) {
+        console.log(m)
+    }
+
+    // @TODO: fix svg unvisible on iphone 06/11/2021
+    const style = `
+    :host(i-modal) {
+        position: relative;
+        display: grid;
+    }
+    :host(i-modal) button {
+        cursor: pointer;
+        display: grid;
+        justify-content: center;
+        align-items: center;
+    }
+    :host(i-modal) button > .icon {
+        width: 8px;
+        height: 8px;
+        display: grid;
+        justify-content: center;
+        align-items: center;
+    }
+    :host(i-modal) svg {
+        width: 100%;
+        height: auto;
+    }
+    :host(i-modal) .i-modal {
+        --modal-color: ${color ? color : 'var(--primary-color)'};
+        --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
+        --modal-border-width: ${borderWidth ? borderWidth : '0px'};
+        --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
+        --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
+        --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-padding: ${padding ? padding : '0'};
+        padding: var(--modal-padding);
+        color: var(--modal-color);
+        background-color: var(--modal-bgColor);
+        border: var(--modal-border);
+    }
+    :host(i-modal) .i-modal:focus, :host(i-modal) .i-modal:focus-within {
+        --outline-border-width: 4px; 
+        --outline-style: ridge;
+        --outline-color: var(--color-greyE2);
+        --outline: var(--outline-border-width) var(--outline-style) var(--outline-color);
+        outline: var(--outline);
+    }
+    :host(i-modal[data-ui="default"]) .i-modal {
+        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
+        --modal-border-width: ${borderWidth ? borderWidth : '1px'};
+        --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
+        --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
+        --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-padding: ${padding ? padding : '30px 34px'};
+    }
+    :host(i-modal[data-ui="step-modal"]) .i-modal {
+        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
+        --modal-padding: ${padding ? padding : '0'};
+    }
+    :host(i-modal[data-ui="action-modal"]) .i-modal {
+        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
+        --modal-border-top-width: ${borderWidth ? borderWidth : '8px'};
+        --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
+        --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
+        --modal-border-top: var(--modal-border-top-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-padding: ${padding ? padding : '25px 50px'};
+        border-top: var(--modal-border-top);
+    }
+    :host(i-modal[data-ui="action-modal"]) .i-modal:focus, :host(i-modal[data-ui="action-modal"]) .i-modal:focus-within {
+        box-shadow: 0 -6px 10px hsla(0, 0%, 0%, .5);
+        outline: none;
+    }
+    :host(i-modal[data-ui="help-modal"]) .i-modal {
+        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
+        --modal-border-color: ${borderColor ? borderColor : 'var(--color-greyE2)'};
+        --modal-border-width: ${borderWidth ? borderWidth : '1px'};
+        --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
+        --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-padding: ${padding ? padding : '15px 20px'};
+        box-shadow: 15px 20px 30px hsla(0, 0%, 0%, .3);
+        outline: none;
+    }
+    :host(i-modal[data-ui="help-modal"]) .i-modal:focus, :host(i-modal[data-ui="help-modal"]) .i-modal:focus-within {
+        outline: none;
+    }
+    :host(i-modal) button[data-ui="close"] {
+        position: absolute;
+        right: -7px;
+        top: -7px;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        background-color: var(--color-white);
+        border: none;
+        box-shadow: 0px 3px 6px hsla(0, 0%, 0%, 0.16);
+    }
+    
+    ${customStyle}
+    `
+    return layout(style)
 }
-:host(i-modal) .i-modal:focus, :host .i-modal:focus-within {
-    --outline-border-width: 4px; 
-    --outline-style: ridge;
-    --outline-color: var(--color-greyE2);
-    outline: var(--outline-border-width) var(--outline-style) var(--outline-color);
-}
-`
-},{"bel":4,"i-body":28,"i-header":29,"i-nocontent":30,"supportCSSStyleSheet":31}],28:[function(require,module,exports){
+},{"bel":6,"i-body":31,"i-header":32,"i-nocontent":33,"icon":34,"supportCSSStyleSheet":35}],31:[function(require,module,exports){
 const styleSheet = require('./supportCSSStyleSheet')
 module.exports = body
 
-function body ({label, content}) {
-    const e = document.createElement('i-body')
-    const root = e.attachShadow({mode: 'closed'})
-    styleSheet(root, style)
-    root.append(content)
-    return e
-}
+function body ({label, content, ui, theme}) {
+    // insert CSS style
+    const customStyle = theme ? theme.style : ''
+    // set CSS variables
+    if (theme && theme.props) {
+        var {size, color, bgColor, borderWidth, borderStyle, borderColor, labelSize, labelColor, labelFocusColor, inputColor, inputFocusColor, inputBgColor, inputBorderWidth, inputBorderStyle, inputBorderColor, inputPadding, badgeSize, badgeColor, badgeBgColor, badgeWeight, shadowBlur, shadowColor, limitSize, limitColor} = theme.props
+    }
+    // UI view
+    function layout (style) {
+        const e = document.createElement('i-body')
+        const root = e.attachShadow({mode: 'closed'})
+        e.dataset.ui = ui
+        styleSheet(root, style)
+        root.append(content)
+        return e
+    }
 
-const style = `
-:host(i-body) {
-    --modal-border-color: var(--color-greyCB);
-    --modal-color: var(--color-grey88);
-    --modal-bgColor: var(--color-white);
-    display: grid;
-    grid-template-rows: auto;
-    grid-template-columns: 1fr;
-    background-color: var(--modal-bgColor);
-    border: 1px solid var(--modal-border-color);
-    align-items: center;
-    min-height: 150px;
-    color: var(--modal-color);
+    const style = `
+    :host(i-body) {
+        --modal-body-color: ${color ? color : 'var(--color-grey88)'};
+        --modal-body-bgColor: ${bgColor ? bgColor : 'transparent'};
+        display: grid;
+        grid-template-rows: auto;
+        grid-template-columns: 1fr;
+        background-color: var(--modal-body-bgColor);
+        align-items: center;
+        color: var(--modal-body-color);
+    }
+    :host(i-body) button {
+        cursor: pointer;
+        display: grid;
+        justify-content: center;
+        align-items: center;
+    }
+    :host(i-body) button > .icon {
+        width: 24px;
+        height: 24px;
+    }
+    :host(i-body) svg {
+        width: 100%;
+        height: auto;
+    }
+    :host(i-body) .form-field {
+        display: grid;
+        gap: 20px;
+    }
+    :host(i-body) .row {
+        --color: ${color ? color : 'var(--primary-color)'};
+        --size: ${size ? size : 'var(--size14)'};
+        display: grid;
+        color: var(--color);
+        font-size: var(--size);
+        word-break: break-all;
+    }
+    :host(i-body) .row:focus-within label {
+        --label-focus: ${labelFocusColor ? labelFocusColor : 'var(--color-black)'};
+        color: var(--label-focus);
+    }
+    :host(i-body) label {
+        --label-color: ${labelColor ? labelColor : 'var(--color-grey66)'};
+        --label-size: ${ labelSize ? labelSize : 'var(--size14)'};
+        grid-row-start: 1;
+        align-self: center;
+        color: var(--label-color);
+        font-size: var(--label-size);
+        line-height: 1.5;
+        transition: color .25s linear;
+    }
+    :host(i-body) input {
+        --input-color: ${inputColor ? inputColor : 'var(--color-black)'};
+        --input-size: ${size ? size : 'var(--size14)'};
+        --input-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
+        --input-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
+        --input-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
+        --input-border: var(--input-border-width) var(--input-border-color) var(--input-border-style);
+        --input-radius: var(--primary-input-radius);
+        --input-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
+        --input-padding: ${inputPadding ? inputPadding : '6px'};
+        grid-column-start: 2;
+        color: var(--input-color);
+        font-size: var(--input-size);
+        line-height: inherit;
+        border: var(--input-border);
+        border-radius: var(--input-radius);
+        padding: var(--input-padding);
+        background-color: var(--input-bgColor);
+        transition: border .6s, background-color .6s, box-sahdow .6s linear;
+    }
+    :host(i-body) .col2.address {
+        grid-row-start: 2;
+        grid-column-end: 3;
+        grid-template-columns: auto;
+    }
+    :host(i-body) .address {
+        word-break: break-all;
+    }
+    :host(i-body) .limit {
+        --limit-size: ${limitSize ? limitSize : 'var(--size12)'};
+        --limit-color: ${limitColor ? limitColor : 'var(--color-grey88)'};
+        align-self: center;
+        font-size: var(--limit-size);
+        color: var(--limit-color);
+    }
+    :host(i-body) input[name="address"]:disabled {
+        color: var(--color-black);
+        border: none;
+        background-color: transparent;
+    }
+    :host(i-body) input:focus {
+        --input-focus: ${inputFocusColor ? inputFocusColor : 'var(--color-black)'};
+        --shaodw-n-offset: 0;
+        --shaodw-v-offset: 0;
+        --shadow-blur: ${shadowBlur ? shadowBlur : '8px'};
+        --shadow-color: ${shadowColor ? shadowColor : 'hsla(0, 0%, 0%, .5)'};
+        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) var(--shadow-color);
+        -webkit-appearance: none; 
+        appearance: none;
+        border-color: var(--input-focus);
+        box-shadow: var(--shadow); 
+        outline: none;
+    }
+    :host(i-body) .col2 {
+        --col-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
+        --col-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
+        --col-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
+        --col-border: var(--col-border-width) var(--col-border-style) var(--col-border-color);
+        --col-radius: var(--primary-input-radius);
+        --col-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
+        display: grid;
+        grid-template-rows: 1fr;
+        grid-template-columns: repeat(2, 1fr) 50px;
+        border: var(--col-border);
+        border-radius: var(--col-radius);
+        background-color: var(--col-bgColor);
+    }
+    :host(i-body) .col2:focus-within {
+        --focus-color: ${inputFocusColor ? inputFocusColor : 'var(--color-black)'};
+        --shaodw-n-offset: 0;
+        --shaodw-v-offset: 0;
+        --shadow-blur: ${shadowBlur ? shadowBlur : '8px'};
+        --shadow-color: ${shadowColor ? shadowColor : 'hsla(0, 0%, 0%, .5)'};
+        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) var(--shadow-color);
+        border-color: var(--focus-color);
+        box-shadow: var(--shadow);
+    }
+    :host(i-body) .col2 input {
+        --input-radius: var(--primary-input-radius);
+        border: none;
+        grid-column-start: span 2;
+        border-radius: var(--input-radius);
+        background-color: transparent;
+        box-shadow: none;
+        padding: 4px;
+    }
+    :host(i-body) .col2 button {
+        grid-column-start: 3;
+        grid-column-end: 4;
+        padding: 0;
+    }
+    :host(i-body) div[data-step="create-account"] > .row {
+        gap: 10px;
+        grid-template-rows: auto;
+        grid-template-columns: 120px auto minmax(auto, 80px);
+    }
+    :host(i-body) select {
+        --select-size: ${ size ? size : 'var(--size14)'};
+        --select-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
+        --select-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
+        --select-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
+        --select-border: var(--select-border-width) var(--select-border-style) var(--select-border-color);
+        --select-radius: var(--primary-input-radius);
+        --select-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
+        --select-padding: ${inputPadding ? inputPadding : '6px'};
+        width: 100%;
+        font-size: var(--select-size);
+        border: var(--select-border);
+        border-radius: var(--select-radius);
+        padding: var(--select-padding);
+        -webkit-appearance: none; 
+        appearance: none;
+        background-color: var(--select-bgColor);
+        transition: border .6s, background-color .6s, box-sahdow .6s linear;
+    }
+    :host(i-body) select:focus {
+        --focus-color: ${inputFocusColor ? inputFocusColor : 'var(--color-black)'};
+        --shaodw-n-offset: 0;
+        --shaodw-v-offset: 0;
+        --shadow-blur: ${shadowBlur ? shadowBlur : '8px'};
+        --shadow-color: ${shadowColor ? shadowColor : 'hsla(0, 0%, 0%, .5)'};
+        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) var(--shadow-color);
+        border-color: var(--focus-color);
+        box-shadow: var(--shadow);
+        outline: none;
+    }
+    :host(i-body[data-ui="default"]) {
+        --modal-body-color: ${color ? color : 'var(--primary-color)'};
+    }
+    :host(i-body[data-ui="default"]) .row {
+        justify-content: center;
+        line-height: 22px;
+    }
+    :host(i-body[data-ui="step-modal"]) {
+        --modal-body-border-width: ${borderWidth ? borderWidth : '1px'};
+        --modal-body-border-style: ${borderStyle ? borderStyle : 'solid'};
+        --modal-body-border-color: ${borderColor ? borderColor : 'var(--color-greyCB)'};
+        --modal-body-border: var(--modal-body-border-width) var(--modal-body-border-style) var(--modal-body-border-color);
+        --modal-body-padding: 30px 10px 30px 30px;
+        border: var(--modal-body-border);
+        padding: var(--modal-body-padding);
+    }
+    :host(i-body[data-ui="action-modal"]) {}
+    :host(i-body[data-ui="help-modal"]) {
+        --modal-body-size: ${size ? size : 'var(--size14)'};
+        --modal-body-color: ${color ? color : 'var(--color-grey33)'};
+        font-size: var(--modal-body-size);
+        color: var(--modal-body-color);
+    }
+    :host(i-body[data-ui="help-modal"]) .badge {
+        --badgeSize: ${badgeSize ? badgeSize : 'var(--size14)'};
+        --badgeWeight: ${badgeWeight ? badgeWeight : 'var(--weight800)'};
+        --badgeColor: ${badgeColor ? badgeColor : 'var(--color-white)'};
+        --badgeBgColor: ${badgeBgColor ? badgeBgColor : 'var(--primary-color)'};
+        font-size: var(--badgeSize);
+        font-weight: var(--badgeWeight);
+        color: var(--badgeColor);
+        background-color: var(--badgeColor);
+    }
+    :host(i-body) .col2 button {
+        background-color: transparent;
+        border: none;
+    }
+    :host(i-body) .col2 button .down {
+        transform: rotate(-90deg);
+    }
+    :host(i-body) .actions {
+        display: flex;
+        justify-content: center;
+    }
+
+    @media (max-width: 640px) {
+        :host(i-body) .form-field {
+            gap: 10px;
+        }
+        :host(i-body) div[data-step="create-account"] > .row {
+            grid-template-rows: 1fr;
+            grid-template-columns: 1fr;
+        }
+        :host(i-body) div[data-step="create-account"] .limit {
+            grid-row-start: 3;
+            justify-self: right;
+        }
+        :host(i-body) label {
+            grid-row-start: 1;
+        }
+        :host(i-body) input {
+            grid-row-start: 2;
+            grid-column-start: 1;
+        }
+        :host(i-body) select {
+            grid-row-start: 2;
+            grid-column-start: span 2;
+        }
+        :host(i-body) .col2 {
+            grid-row-start: 2;
+        }
+        :host(i-body) .col2.address {
+            grid-row-start: 3;
+            grid-column-start: span 2;
+        }
+        :host(i-body) .col2 input {
+            grid-row-start: 1;
+        }
+    }
+    ${customStyle}
+    `
+    return layout(style)
 }
-:host .form-field {
-    display: grid;
-    gap: 20px;
-}
-:host .row {
-    display: grid;
-}
-:host .row > label {
-    --label-color: var(--color-grey66);
-    --label-size: var(--sizet14);
-    grid-row-start: 1;
-    align-self: center;
-    color: var(--label-color);
-    font-size: var(--label-size);
-    line-height: 1.5;
-}
-:host .row > input {
-    --input-color: var(--color-black);
-    --input-size: var(--sizet14);
-    --input-border-width: 1px;
-    --input-border-style: solid;
-    --input-border-color: var(--color-greyCB);
-    --input-border: var(--input-border-width) var(--input-border-color) var(--input-border-style);
-    --input-radius: var(--primary-input-radius);
-    grid-column-start: 2;
-    color: var(--input-color);
-    font-size: var(--input-size);
-    line-height: inherit;
-    border: var(--input-border);
-    border-radius: --input-radius;
-    padding: 6px;
-}
-:host .row > span {
-    align-self: center;
-    font-size: var(--size12);
-    color: var(--color-grey88);
-}
-:host .row > input:focus {
-    border-color: var(--color-black);
-    outline: var(--color-red);
-}
-:host .row > input:focus + label {
-    color: var(--color-black);
-}
-:host div[data-name="create-account"] {
-    padding: 30px 10px 30px 30px;
-}
-:host div[data-name="create-account"] > .row {
-    gap: 10px;
-    grid-template-rows: auto;
-    grid-template-columns: minmax(min-content, 120px) auto minmax(auto, 80px);
-}
-:host .row > select {
-    --select-size: var(--sizet14);
-    --select-border-width: 1px;
-    --select-border-style: solid;
-    --select-border-color: var(--color-greyCB);
-    --select-border: var(--select-border-width) var(--select-border-style) var(--select-border-color);
-    font-size: var(--select-size);
-    border: var(--select-border);
-    border-radius: 8px;
-    padding: 5px;
-}
-`
-},{"./supportCSSStyleSheet":31}],29:[function(require,module,exports){
+},{"./supportCSSStyleSheet":35}],32:[function(require,module,exports){
 const bel = require('bel')
 const styleSheet = require('./supportCSSStyleSheet')
 module.exports = header
 
-function header({label, content}) {
-    // create custom html tag element
-    const e = document.createElement('i-header')
-    const root = e.attachShadow({mode: 'closed'})
-    const h1 = bel`<h1 class="title" aria-label="${label}">${content}</h1>`
-    styleSheet(root, style)
-    root.append(h1)
-    return e 
+function header({label, content, ui, theme}) {
+    // insert CSS style
+    const customStyle = theme ? theme.style : ''
+    // set CSS variables
+    if (theme && theme.props) { 
+        var {size, color, bgColor, padding, marginBottom} = theme.props
+    }
+    // UI view
+    function layout(style) {
+        // create custom html tag element
+        const e = document.createElement('i-header')
+        const root = e.attachShadow({mode: 'closed'})
+        const h1 = bel`<h1 aria-label="${label}">${content}</h1>`
+        e.dataset.ui = ui
+        styleSheet(root, style)
+        root.append(h1)
+        return e 
+    }
+    
+    const style = `
+    :host(i-header) {
+        display: grid;
+        justify-content: center;
+        --modal-header-bgColor: ${bgColor ? bgColor : 'transparent'};
+        --modal-header-padding: ${padding ? padding : '0'};
+        background-color: var(--modal-header-bgColor);
+        padding: var(--modal-header-padding);
+    }
+    :host(i-header) h1 {
+        --modal-header-color: ${color ? color : 'var(--primary-color)'};
+        --modal-header-size: ${size ? size : 'var(--size22)'};
+        color: var(--modal-header-color);
+        font-size: var(--modal-header-size);
+        margin: 0;
+    }
+    :host(i-header[data-ui="default"]) {
+    }
+    :host(i-header[data-ui="step-modal"]) {
+        --modal-header-bgColor: ${bgColor ? bgColor : 'var(--color-greyF2)'};
+        --modal-header-padding: ${padding ? padding : '20px 0'};
+    }
+    :host(i-header[data-ui="action-modal"]) {
+        margin-bottom: 30px;
+    }
+    :host(i-header[data-ui="help-modal"]) {
+        margin-bottom: 12px;
+    }
+    :host(i-header[data-ui="help-modal"]) h1 {
+        --modal-header-size: ${size ? size : 'var(--size16)'};
+    }
+    ${customStyle}
+    `
+    return layout(style)
 }
 
-const style = `
-:host(i-header) {
-    display: grid;
-    justify-content: center;
-    background-color: #F2F2F2;
-    padding: 20px 0;
-}
-:host .title {
-    color: #000;
-    font-size: 2.2rem;
-    margin: 0;
-}
-`
-},{"./supportCSSStyleSheet":31,"bel":4}],30:[function(require,module,exports){
+
+},{"./supportCSSStyleSheet":35,"bel":6}],33:[function(require,module,exports){
 module.exports = nocontent
 
 function nocontent () {
@@ -1384,7 +1947,15 @@ const style = `
     text-align: center;
 }
 `
-},{}],31:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
+const svg = require('datdot-ui-graphic')
+function icon ({classname, name}) {
+    const el = svg({css: classname ? `icon ${classname}` : 'icon', path: `./svg/${name}.svg`})
+    return el
+}
+module.exports = icon
+
+},{"datdot-ui-graphic":26}],35:[function(require,module,exports){
 module.exports = supportCSSStyleSheet
 function supportCSSStyleSheet (root, style) {
     return (() => {
