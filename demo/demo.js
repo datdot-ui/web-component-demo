@@ -1,12 +1,14 @@
 const modal = require('..')
 const bel = require('bel')
 const csjs = require('csjs-inject')
-const { newAccountOpt, runPlanOpt } = require('options')
+const { newAccountOpt, runPlanOpt, transferOpt, helpOpt } = require('options')
 
 function demoApp() {
     const recipients = []
     const createNewAccount = modal(newAccountOpt( createAccountProtocol('create-account') ), createAccountProtocol('create-new-account'))
-    const runPlan = modal( runPlanOpt( runPlanProtocol('run-plan') ), runPlanProtocol('run-plan') )
+    const runPlan = modal(runPlanOpt( runPlanProtocol('run-plan') ), runPlanProtocol('run-plan') )
+    const transfer = modal(transferOpt( transferProtocol('transfer') ), transferProtocol('transfer'))
+    const help = modal(helpOpt( helpProtocol('help') ), helpProtocol('help'))
     const app = bel`
     <div class="${css.container}">
         <section>
@@ -17,20 +19,36 @@ function demoApp() {
             <h1>Default modal</h1>
             ${runPlan}
         </section>
-        
-    </div>`
+        <section>
+            <h1>Action modal</h1>
+            ${transfer}
+        </section>
+        <section>
+            <h1>Help modal</h1>
+            ${help}
+        </section>
+    </div>
+    `
 
     return app
 
-    function runPlanProtocol(name) {
+    function helpProtocol (name) {
         return protocol(name)
     }
 
-    function createAccountProtocol(name) {
+    function runPlanProtocol (name) {
         return protocol(name)
     }
 
-    function protocol(name) {
+    function createAccountProtocol (name) {
+        return protocol(name)
+    }
+
+    function transferProtocol (name) {
+        return protocol(name)
+    }
+
+    function protocol (name) {
         return sender => {
             recipients[name] = sender
             return (msg) => {
