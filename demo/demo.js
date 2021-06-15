@@ -166,7 +166,7 @@ body {
     visibility: hidden;
 }
 [data-state="debug"] {
-    grid-template-rows: 100%;
+    grid-template-rows: 100vh;
     grid-template-columns: auto 40vw;
 }
 .container {
@@ -174,6 +174,7 @@ body {
     grid-template-rows: auto;
     grid-template-columns: 90%;
     justify-content: center;
+    align-content: baseline;
     padding: 20px 0 80px 0;
     background-color: var(--color-white);
 }
