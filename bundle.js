@@ -2,42 +2,51 @@
 const modal = require('..')
 const bel = require('bel')
 const csjs = require('csjs-inject')
-const { newAccountOpt, runPlanOpt, transferOpt, helpOpt } = require('options')
+const logs = require('../src/node_modules/logs')
+const actions = require('actions')
+const { newAccountOpt, planPlayOpt, transferOpt, helpOpt } = require('options')
 
 function demoApp() {
     const recipients = []
     const createNewAccount = modal(newAccountOpt( createAccountProtocol('create-account') ), createAccountProtocol('create-new-account'))
-    const runPlan = modal(runPlanOpt( runPlanProtocol('run-plan') ), runPlanProtocol('run-plan') )
+    const planPlay = modal(planPlayOpt( planPlayProtocol('run-plan') ), planPlayProtocol('run-plan') )
     const transfer = modal(transferOpt( transferProtocol('transfer') ), transferProtocol('transfer'))
     const help = modal(helpOpt( helpProtocol('help') ), helpProtocol('help'))
-    const app = bel`
+    const demo = bel`
+    <div class="demo">
+        ${appendElement({title: 'Default', item: planPlay})}
+        ${appendElement({title: 'Step', item: createNewAccount})}
+        ${appendElement({title: 'Action', item: transfer})}
+        ${appendElement({title: 'Help', item: help})}
+    </div>`
+    const container = bel`
     <div class="${css.container}">
-        <section>
-            <h1>Step modal</h1>
-            ${createNewAccount}
-        </section>
-        <section>
-            <h1>Default modal</h1>
-            ${runPlan}
-        </section>
-        <section>
-            <h1>Action modal</h1>
-            ${transfer}
-        </section>
-        <section>
-            <h1>Help modal</h1>
-            ${help}
-        </section>
+        ${actions( protocol('actions') )}
+        ${demo}
     </div>
     `
 
+    const app = bel`
+    <div class="${css.wrap}" data-state="debug">
+        ${container}${logs()}
+    </div>`
+
     return app
+
+    function appendElement({title, item}) {
+        const el = bel`
+        <section class="${title.toLowerCase()}">
+            <h1>${title} modal</h1>
+            ${item}
+        </section>`
+        return el
+    }
 
     function helpProtocol (name) {
         return protocol(name)
     }
 
-    function runPlanProtocol (name) {
+    function planPlayProtocol (name) {
         return protocol(name)
     }
 
@@ -49,10 +58,26 @@ function demoApp() {
         return protocol(name)
     }
 
+    function handleActions(name, body) {
+        const items = [...demo.children]
+        items.map( item => {
+            item.ariaHidden = true
+            if (item.classList.contains(body) ) item.ariaHidden = false
+            if (body === 'all') item.ariaHidden = false
+        })
+    }
+
+    function handleClickProtocol (msg) {
+        const {from, flow, body} = msg
+        if (flow === 'actions') handleActions(from, body)
+    }
+
     function protocol (name) {
         return sender => {
             recipients[name] = sender
             return (msg) => {
+                const {type} = msg
+                if (type === 'click') handleClickProtocol(msg)
                 console.log( msg );
             }
         }
@@ -133,28 +158,46 @@ body {
     padding: 0;
     font-size: var(--primary-font-size);
     font-family: var(--primary-font);
+    background-color: hsl(223, 13%, 20%);
+}
+.wrap {
+    display: grid;
+}
+[data-state="view"] i-log {
+    visibility: hidden;
+}
+[data-state="debug"] {
+    grid-template-rows: 100%;
+    grid-template-columns: auto 40vw;
 }
 .container {
     display: grid;
     grid-template-rows: auto;
     grid-template-columns: 90%;
     justify-content: center;
-    margin-top: 20px;
+    padding: 20px 0 80px 0;
+    background-color: var(--color-white);
+}
+[aria-hidden="true"] {
+    display: none;
 }
 `
 
 document.body.append( demoApp() )
-},{"..":32,"bel":8,"csjs-inject":11,"options":6}],2:[function(require,module,exports){
+},{"..":35,"../src/node_modules/logs":40,"actions":6,"bel":9,"csjs-inject":12,"options":7}],2:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
 const icon = require('../../src/node_modules/icon')
+const file = require('path').basename(__filename)
 
 module.exports = createAccount
 
 function createAccount(protocol) {
     const sender = protocol( get )
+    sender({from: 'create-new-account', type: 'ready', action: 'createAccount', file, line: 9 })
     let address = 'hyper://'
     const input = bel`<input type="text" name="custom address" arial-label="Custom address" aria-required="true" value="${address}">`
-    const customAddress = bel`<div class="col2 address">${input}</div>`
+    const customAddress = bel`<div class="col3 address">${input}</div>`
     const show1 = new icon({name: 'show'})
     const show2 = new icon({name: 'show'})
     const showButton1 = bel`<button role="button" data-state="hide" aria-label="show password" aria-live="assertive" onclick=${(e) => toggleIcon(showButton1, 'password')}>${show1}</button>`
@@ -224,14 +267,18 @@ function createAccount(protocol) {
     }
 }
 
-},{"../../src/node_modules/icon":36,"bel":8}],3:[function(require,module,exports){
+}).call(this)}).call(this,"/demo/node_modules/CreateAccount.js")
+},{"../../src/node_modules/icon":39,"bel":9,"path":33}],3:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
 const icon = require('../../src/node_modules/icon')
+const file = require('path').basename(__filename)
 
 module.exports = help
 
 function help (protocol) {
     const sender = protocol (get)
+    sender({from: 'plan-summary-list', type: 'ready', file, line: 9 })
     const arrowRightIcon = new icon({name: 'arrow-right'})
     const helpElement = bel`
     <section aria-current="Plan summary list">
@@ -241,20 +288,23 @@ function help (protocol) {
             <button role="button" class="btn" data-step="1" aria-label="Step button">Next ${arrowRightIcon}</button>
         </footer>
     </section>` 
-
     return helpElement
 
     function get (msg) {
         console.log( msg );
     }
 }
-},{"../../src/node_modules/icon":36,"bel":8}],4:[function(require,module,exports){
+}).call(this)}).call(this,"/demo/node_modules/Help.js")
+},{"../../src/node_modules/icon":39,"bel":9,"path":33}],4:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
+const file = require('path').basename(__filename)
 
-module.exports = runPlan
+module.exports = planPlay
 
-function runPlan (plan = null, protocol) {
-    const send = protocol (get)
+function planPlay (plan = null, protocol) {
+    const sender = protocol (get)
+    sender({from: 'plan-play', type: 'ready', file, line: 9 })
     const cancelButton = bel`<button class="btn" data-action="cancel" aria-label="Cancel" onclick="${() => handleCancel()}">Cancel</button>`
     const confirmButton = bel`<button class="btn" data-action="confirm" aria-label="Confirm" onclick="${() => handleConfirm()}">Confirm</button>`
     const el = bel`
@@ -271,7 +321,7 @@ function runPlan (plan = null, protocol) {
     return el
 
     function handleCancel () {
-        console.log('cancel');
+        sender({from: 'run-plan', type: 'ready'})
     }
 
     function handleConfirm () {
@@ -282,12 +332,17 @@ function runPlan (plan = null, protocol) {
         console.log( msg );
     }
 }
-},{"bel":8}],5:[function(require,module,exports){
+}).call(this)}).call(this,"/demo/node_modules/PlanPlay.js")
+},{"bel":9,"path":33}],5:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
+const file = require('path').basename(__filename)
+
 module.exports = transfer
 
 function transfer(protocol) {
     const sender = protocol( get )
+    sender({from: 'transfer', type: 'ready', file, line: 9 })
     const cancelButton = bel`<button class="btn" data-action="cancel" aria-label="Cancel" onclick="${() => handleCancel()}">Cancel</button>`
     const transferButton = bel`<button class="btn" data-action="confirm" aria-label="Transfer" onclick="${() => handleTransfer()}">Transfer</button>`
     const transferElement = bel`
@@ -334,9 +389,80 @@ function transfer(protocol) {
         console.log( msg );
     }
 }
-},{"bel":8}],6:[function(require,module,exports){
+}).call(this)}).call(this,"/demo/node_modules/Transfer.js")
+},{"bel":9,"path":33}],6:[function(require,module,exports){
+(function (__filename){(function (){
+const styleSheet = require('../../src/node_modules/supportCSSStyleSheet')
+const bel = require('bel')
+const file = require('path').basename(__filename)
+
+module.exports = actions
+
+function actions (protocol) {
+    const sender = protocol (get)
+    const e = document.createElement('i-actions')
+    const root = e.attachShadow({mode: 'closed'})
+    const showAllButton = bel`<button role="button" aria-current="true" aria-label="Show all" class="btn" data-active="true" data-item="all">Show all modals</button>`
+    const planPlayButton = bel`<button role="button" aria-label="Plan play" class="btn" data-active="false" data-item="default modal">Plan play</button>`
+    const createButton = bel`<button role="button" aria-label="Create new account" class="btn" data-active="false" data-item="step modal">Create new account</button>`
+    const transferButton = bel`<button role="button" aria-label="Transfer" class="btn" data-active="false" data-item="action modal">Transfer</button>`
+    const helpButton = bel`<button role="button" aria-label="Help" class="btn" data-active="false" data-item="help modal">Help</button>`
+    const actionBar = bel`<div class="actions" onclick="${(e) => handleTabs(e, actionBar)}">${showAllButton}${planPlayButton}${createButton}${transferButton}${helpButton}</div>`
+    root.append(actionBar)
+    styleSheet(root, style)
+    return e
+
+    function handleTabs(e, target) {
+        const current = e.target.textContent
+        const buttons = [...target.children]
+        buttons.map( b => {
+            if (b.dataset.active === true) return
+            b.dataset.active = false
+            b.removeAttribute('aria-current')
+            if (current === b.textContent) {
+                b.dataset.active = true
+                b.setAttribute('aria-current', true)
+                sender({from: current, flow: 'actions', type: 'click', fn: 'handleTabs', body: b.dataset.item.split(' ')[0], file, line: 29})
+            } 
+       })
+    }
+
+    function get (msg) {
+        console.log( msg )
+    }
+}
+
+const style = `
+:host(i-actions) .actions {
+    display: grid;
+    grid-template-rows: 44px;
+    grid-auto-flow: column;
+    gap: 8px;
+}
+:host(i-actions) button {
+    --button-size: var(--size14);
+    --button-color: var(--primary-color);
+    --button-bgColor: var(--color-greyEF);
+    --button-padding: 6px 12px;
+    font-size: var(--button-size);
+    color: var(--button-color);
+    background-color: var(--button-bgColor);
+    padding: var(--button-padding);
+    border: none;
+    border-radius: 4px;
+    transition: color .25s, background-color .25s linear;
+    cursor: pointer;
+}
+:host(i-actions) button[data-active="true"] {
+    --button-color: var(--color-white);
+    --button-bgColor: var(--color-black);
+    cursor: default;
+}
+`
+}).call(this)}).call(this,"/demo/node_modules/actions.js")
+},{"../../src/node_modules/supportCSSStyleSheet":41,"bel":9,"path":33}],7:[function(require,module,exports){
 const createAccount = require('./CreateAccount')
-const runPlan = require('./RunPlan')
+const runPlan = require('PlanPlay')
 const transfer = require('./Transfer')
 const help = require('./Help')
 
@@ -347,14 +473,14 @@ const newAccountOpt = (protocol) => {
         body: createAccount( protocol ),
         ui: 'step-modal',
         theme: {
-            // style: `
-            // :host(i-modal[data-ui="custom"]) {
-            //     --modal-bgColor: hsl(29, 100%, 70%)
-            // }
-            // `,
-            // props: {
-            //     bgColor: 'var(--color-greyE2)'
-            // },
+            style: `
+            :host(i-modal[data-ui="custom"]) {
+                --modal-bgColor: hsl(29, 100%, 70%)
+            }
+            `,
+            props: {
+                // bgColor: 'var(--color-blue)'
+            },
             header: {
                 style: `
                 /* :host(i-header[data-ui="step-modal"]) {
@@ -375,46 +501,50 @@ const newAccountOpt = (protocol) => {
                 // }
             },
             body: {
-                style: `
-                :host(i-body[data-ui="custom"]) {
-                    background-color: hsl(330, 2%, 22%);
-                    padding: 30px 20px;
-                }
-                :host(i-body[data-ui="custom"]) label {
-                    color: hsl(0, 0%, 100%);
-                }
-                :host(i-body[data-ui="custom"]) span {
-                    color: hsl(0, 0%, 60%);
-                }
-                :host(i-body[data-ui="custom"]) .row:focus-within label {
-                    --label-focus: hsl(29, 100%, 58%);
-                }
-                :host(i-body[data-ui="custom"]) input[name="address"]:disabled {
-                    color: hsl(0, 0%, 60%);
-                }
-                :host(i-body[data-ui="custom"]) input:focus, 
-                :host(i-body[data-ui="custom"]) .col2:focus-within,
-                :host(i-body[data-ui="custom"]) select:focus {
-                    --shadow-blur: 12px;
-                    --shadow-color: hsla(50, 100%, 50%, 0.5);
-                }
-                `,
+                // style: `
+                // :host(i-body[data-ui="step-modal"]) {
+                //     --modal-body-bgColor: hsl(200, 100%, 50%);
+                // }
+                // :host(i-body[data-ui="custom"]) {
+                //     background-color: hsl(330, 2%, 22%);
+                //     padding: 30px 20px;
+                // }
+                // :host(i-body[data-ui="custom"]) label {
+                //     color: hsl(0, 0%, 100%);
+                // }
+                // :host(i-body[data-ui="custom"]) span {
+                //     color: hsl(0, 0%, 60%);
+                // }
+                // :host(i-body[data-ui="custom"]) .row:focus-within label {
+                //     --label-focus: hsl(29, 100%, 58%);
+                // }
+                // :host(i-body[data-ui="custom"]) input[name="address"]:disabled {
+                //     color: hsl(0, 0%, 60%);
+                // }
+                // :host(i-body[data-ui="custom"]) input:focus, 
+                // :host(i-body[data-ui="custom"]) .col2:focus-within,
+                // :host(i-body[data-ui="custom"]) select:focus {
+                //     --shadow-blur: 12px;
+                //     --shadow-color: hsla(50, 100%, 50%, 0.5);
+                // }
+                // `,
                 // props: {
                 //     size: 'var(--size14)',
                 //     labelSize: 'var(--size12)',
-                //     labelColor: 'var(--color-blue)',
+                //     labelColor: 'var(--color-white)',
                 //     labelFocusColor: 'var(--color-purple)',
                 //     inputColor: 'var(--color-black)',
                 //     inputBorderColor: 'var(--color-blue)',
                 //     inputFocusColor: 'var(--color-purple)',
-                //     borderColor: 'var(--color-medium-purple)',
+                //     borderColor: 'var(--color-flame)',
+                //     borderWidth: '20px',
                 // }
             }
         }
     }
 }
 
-const runPlanOpt = (protocol) => {
+const planPlayOpt = (protocol) => {
     return {
         name: 'run plan',
         header: 'Your small step is our big step',
@@ -462,8 +592,8 @@ const helpOpt = (protocol) => {
     }
 }
 
-module.exports = { newAccountOpt, runPlanOpt, transferOpt, helpOpt }
-},{"./CreateAccount":2,"./Help":3,"./RunPlan":4,"./Transfer":5}],7:[function(require,module,exports){
+module.exports = { newAccountOpt, planPlayOpt, transferOpt, helpOpt }
+},{"./CreateAccount":2,"./Help":3,"./Transfer":5,"PlanPlay":4}],8:[function(require,module,exports){
 var trailingNewlineRegex = /\n[\s]+$/
 var leadingNewlineRegex = /^\n[\s]+/
 var trailingSpaceRegex = /[\s]+$/
@@ -596,7 +726,7 @@ module.exports = function appendChild (el, childs) {
   }
 }
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var hyperx = require('hyperx')
 var appendChild = require('./appendChild')
 
@@ -697,7 +827,7 @@ module.exports = hyperx(belCreateElement, {comments: true})
 module.exports.default = module.exports
 module.exports.createElement = belCreateElement
 
-},{"./appendChild":7,"hyperx":30}],9:[function(require,module,exports){
+},{"./appendChild":8,"hyperx":31}],10:[function(require,module,exports){
 (function (global){(function (){
 'use strict';
 
@@ -716,12 +846,12 @@ function csjsInserter() {
 module.exports = csjsInserter;
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"csjs":14,"insert-css":31}],10:[function(require,module,exports){
+},{"csjs":15,"insert-css":32}],11:[function(require,module,exports){
 'use strict';
 
 module.exports = require('csjs/get-css');
 
-},{"csjs/get-css":13}],11:[function(require,module,exports){
+},{"csjs/get-css":14}],12:[function(require,module,exports){
 'use strict';
 
 var csjs = require('./csjs');
@@ -730,17 +860,17 @@ module.exports = csjs;
 module.exports.csjs = csjs;
 module.exports.getCss = require('./get-css');
 
-},{"./csjs":9,"./get-css":10}],12:[function(require,module,exports){
+},{"./csjs":10,"./get-css":11}],13:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib/csjs');
 
-},{"./lib/csjs":18}],13:[function(require,module,exports){
+},{"./lib/csjs":19}],14:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib/get-css');
 
-},{"./lib/get-css":22}],14:[function(require,module,exports){
+},{"./lib/get-css":23}],15:[function(require,module,exports){
 'use strict';
 
 var csjs = require('./csjs');
@@ -750,7 +880,7 @@ module.exports.csjs = csjs;
 module.exports.noScope = csjs({ noscope: true });
 module.exports.getCss = require('./get-css');
 
-},{"./csjs":12,"./get-css":13}],15:[function(require,module,exports){
+},{"./csjs":13,"./get-css":14}],16:[function(require,module,exports){
 'use strict';
 
 /**
@@ -772,7 +902,7 @@ module.exports = function encode(integer) {
   return str;
 };
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 'use strict';
 
 var makeComposition = require('./composition').makeComposition;
@@ -816,7 +946,7 @@ function getClassChain(obj) {
   return acc;
 }
 
-},{"./composition":17}],17:[function(require,module,exports){
+},{"./composition":18}],18:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -896,7 +1026,7 @@ function ignoreComposition(values) {
  */
 function Composition() {}
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 var extractExtends = require('./css-extract-extends');
@@ -974,7 +1104,7 @@ function without(obj, unwanted) {
   }, {});
 }
 
-},{"./build-exports":16,"./composition":17,"./css-extract-extends":19,"./css-key":20,"./extract-exports":21,"./scopeify":27}],19:[function(require,module,exports){
+},{"./build-exports":17,"./composition":18,"./css-extract-extends":20,"./css-key":21,"./extract-exports":22,"./scopeify":28}],20:[function(require,module,exports){
 'use strict';
 
 var makeComposition = require('./composition').makeComposition;
@@ -1027,7 +1157,7 @@ function getClassName(str) {
   return trimmed[0] === '.' ? trimmed.substr(1) : trimmed;
 }
 
-},{"./composition":17}],20:[function(require,module,exports){
+},{"./composition":18}],21:[function(require,module,exports){
 'use strict';
 
 /**
@@ -1037,7 +1167,7 @@ function getClassName(str) {
 
 module.exports = ' css ';
 
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 'use strict';
 
 var regex = require('./regex');
@@ -1064,7 +1194,7 @@ function getExport(css, regex) {
   return prop;
 }
 
-},{"./regex":24}],22:[function(require,module,exports){
+},{"./regex":25}],23:[function(require,module,exports){
 'use strict';
 
 var cssKey = require('./css-key');
@@ -1073,7 +1203,7 @@ module.exports = function getCss(csjs) {
   return csjs[cssKey];
 };
 
-},{"./css-key":20}],23:[function(require,module,exports){
+},{"./css-key":21}],24:[function(require,module,exports){
 'use strict';
 
 /**
@@ -1091,7 +1221,7 @@ module.exports = function hashStr(str) {
   return hash >>> 0;
 };
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 'use strict';
 
 var findClasses = /(\.)(?!\d)([^\s\.,{\[>+~#:)]*)(?![^{]*})/.source;
@@ -1107,7 +1237,7 @@ module.exports = {
   ignoreComments: ignoreComments,
 };
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 var ignoreComments = require('./regex').ignoreComments;
 
 module.exports = replaceAnimations;
@@ -1138,7 +1268,7 @@ function replaceAnimations(result) {
   return result;
 }
 
-},{"./regex":24}],26:[function(require,module,exports){
+},{"./regex":25}],27:[function(require,module,exports){
 'use strict';
 
 var encode = require('./base62-encode');
@@ -1152,7 +1282,7 @@ module.exports = function fileScoper(fileSrc) {
   }
 };
 
-},{"./base62-encode":15,"./hash-string":23}],27:[function(require,module,exports){
+},{"./base62-encode":16,"./hash-string":24}],28:[function(require,module,exports){
 'use strict';
 
 var fileScoper = require('./scoped-name');
@@ -1193,7 +1323,7 @@ function scopify(css, ignores) {
   return replaceAnimations(result);
 }
 
-},{"./regex":24,"./replace-animations":25,"./scoped-name":26}],28:[function(require,module,exports){
+},{"./regex":25,"./replace-animations":26,"./scoped-name":27}],29:[function(require,module,exports){
 module.exports = svg
 
 function svg(opts) {
@@ -1221,7 +1351,7 @@ function svg(opts) {
     
     return el
 }   
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = attributeToProperty
 
 var transform = {
@@ -1242,7 +1372,7 @@ function attributeToProperty (h) {
   }
 }
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var attrToProp = require('hyperscript-attribute-to-property')
 
 var VAR = 0, TEXT = 1, OPEN = 2, CLOSE = 3, ATTR = 4
@@ -1539,7 +1669,7 @@ var closeRE = RegExp('^(' + [
 ].join('|') + ')(?:[\.#][a-zA-Z0-9\u007F-\uFFFF_:-]+)*$')
 function selfClosing (tag) { return closeRE.test(tag) }
 
-},{"hyperscript-attribute-to-property":29}],31:[function(require,module,exports){
+},{"hyperscript-attribute-to-property":30}],32:[function(require,module,exports){
 var inserted = {};
 
 module.exports = function (css, options) {
@@ -1563,7 +1693,726 @@ module.exports = function (css, options) {
     }
 };
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
+(function (process){(function (){
+// 'path' module extracted from Node.js v8.11.1 (only the posix part)
+// transplited with Babel
+
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+'use strict';
+
+function assertPath(path) {
+  if (typeof path !== 'string') {
+    throw new TypeError('Path must be a string. Received ' + JSON.stringify(path));
+  }
+}
+
+// Resolves . and .. elements in a path with directory names
+function normalizeStringPosix(path, allowAboveRoot) {
+  var res = '';
+  var lastSegmentLength = 0;
+  var lastSlash = -1;
+  var dots = 0;
+  var code;
+  for (var i = 0; i <= path.length; ++i) {
+    if (i < path.length)
+      code = path.charCodeAt(i);
+    else if (code === 47 /*/*/)
+      break;
+    else
+      code = 47 /*/*/;
+    if (code === 47 /*/*/) {
+      if (lastSlash === i - 1 || dots === 1) {
+        // NOOP
+      } else if (lastSlash !== i - 1 && dots === 2) {
+        if (res.length < 2 || lastSegmentLength !== 2 || res.charCodeAt(res.length - 1) !== 46 /*.*/ || res.charCodeAt(res.length - 2) !== 46 /*.*/) {
+          if (res.length > 2) {
+            var lastSlashIndex = res.lastIndexOf('/');
+            if (lastSlashIndex !== res.length - 1) {
+              if (lastSlashIndex === -1) {
+                res = '';
+                lastSegmentLength = 0;
+              } else {
+                res = res.slice(0, lastSlashIndex);
+                lastSegmentLength = res.length - 1 - res.lastIndexOf('/');
+              }
+              lastSlash = i;
+              dots = 0;
+              continue;
+            }
+          } else if (res.length === 2 || res.length === 1) {
+            res = '';
+            lastSegmentLength = 0;
+            lastSlash = i;
+            dots = 0;
+            continue;
+          }
+        }
+        if (allowAboveRoot) {
+          if (res.length > 0)
+            res += '/..';
+          else
+            res = '..';
+          lastSegmentLength = 2;
+        }
+      } else {
+        if (res.length > 0)
+          res += '/' + path.slice(lastSlash + 1, i);
+        else
+          res = path.slice(lastSlash + 1, i);
+        lastSegmentLength = i - lastSlash - 1;
+      }
+      lastSlash = i;
+      dots = 0;
+    } else if (code === 46 /*.*/ && dots !== -1) {
+      ++dots;
+    } else {
+      dots = -1;
+    }
+  }
+  return res;
+}
+
+function _format(sep, pathObject) {
+  var dir = pathObject.dir || pathObject.root;
+  var base = pathObject.base || (pathObject.name || '') + (pathObject.ext || '');
+  if (!dir) {
+    return base;
+  }
+  if (dir === pathObject.root) {
+    return dir + base;
+  }
+  return dir + sep + base;
+}
+
+var posix = {
+  // path.resolve([from ...], to)
+  resolve: function resolve() {
+    var resolvedPath = '';
+    var resolvedAbsolute = false;
+    var cwd;
+
+    for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+      var path;
+      if (i >= 0)
+        path = arguments[i];
+      else {
+        if (cwd === undefined)
+          cwd = process.cwd();
+        path = cwd;
+      }
+
+      assertPath(path);
+
+      // Skip empty entries
+      if (path.length === 0) {
+        continue;
+      }
+
+      resolvedPath = path + '/' + resolvedPath;
+      resolvedAbsolute = path.charCodeAt(0) === 47 /*/*/;
+    }
+
+    // At this point the path should be resolved to a full absolute path, but
+    // handle relative paths to be safe (might happen when process.cwd() fails)
+
+    // Normalize the path
+    resolvedPath = normalizeStringPosix(resolvedPath, !resolvedAbsolute);
+
+    if (resolvedAbsolute) {
+      if (resolvedPath.length > 0)
+        return '/' + resolvedPath;
+      else
+        return '/';
+    } else if (resolvedPath.length > 0) {
+      return resolvedPath;
+    } else {
+      return '.';
+    }
+  },
+
+  normalize: function normalize(path) {
+    assertPath(path);
+
+    if (path.length === 0) return '.';
+
+    var isAbsolute = path.charCodeAt(0) === 47 /*/*/;
+    var trailingSeparator = path.charCodeAt(path.length - 1) === 47 /*/*/;
+
+    // Normalize the path
+    path = normalizeStringPosix(path, !isAbsolute);
+
+    if (path.length === 0 && !isAbsolute) path = '.';
+    if (path.length > 0 && trailingSeparator) path += '/';
+
+    if (isAbsolute) return '/' + path;
+    return path;
+  },
+
+  isAbsolute: function isAbsolute(path) {
+    assertPath(path);
+    return path.length > 0 && path.charCodeAt(0) === 47 /*/*/;
+  },
+
+  join: function join() {
+    if (arguments.length === 0)
+      return '.';
+    var joined;
+    for (var i = 0; i < arguments.length; ++i) {
+      var arg = arguments[i];
+      assertPath(arg);
+      if (arg.length > 0) {
+        if (joined === undefined)
+          joined = arg;
+        else
+          joined += '/' + arg;
+      }
+    }
+    if (joined === undefined)
+      return '.';
+    return posix.normalize(joined);
+  },
+
+  relative: function relative(from, to) {
+    assertPath(from);
+    assertPath(to);
+
+    if (from === to) return '';
+
+    from = posix.resolve(from);
+    to = posix.resolve(to);
+
+    if (from === to) return '';
+
+    // Trim any leading backslashes
+    var fromStart = 1;
+    for (; fromStart < from.length; ++fromStart) {
+      if (from.charCodeAt(fromStart) !== 47 /*/*/)
+        break;
+    }
+    var fromEnd = from.length;
+    var fromLen = fromEnd - fromStart;
+
+    // Trim any leading backslashes
+    var toStart = 1;
+    for (; toStart < to.length; ++toStart) {
+      if (to.charCodeAt(toStart) !== 47 /*/*/)
+        break;
+    }
+    var toEnd = to.length;
+    var toLen = toEnd - toStart;
+
+    // Compare paths to find the longest common path from root
+    var length = fromLen < toLen ? fromLen : toLen;
+    var lastCommonSep = -1;
+    var i = 0;
+    for (; i <= length; ++i) {
+      if (i === length) {
+        if (toLen > length) {
+          if (to.charCodeAt(toStart + i) === 47 /*/*/) {
+            // We get here if `from` is the exact base path for `to`.
+            // For example: from='/foo/bar'; to='/foo/bar/baz'
+            return to.slice(toStart + i + 1);
+          } else if (i === 0) {
+            // We get here if `from` is the root
+            // For example: from='/'; to='/foo'
+            return to.slice(toStart + i);
+          }
+        } else if (fromLen > length) {
+          if (from.charCodeAt(fromStart + i) === 47 /*/*/) {
+            // We get here if `to` is the exact base path for `from`.
+            // For example: from='/foo/bar/baz'; to='/foo/bar'
+            lastCommonSep = i;
+          } else if (i === 0) {
+            // We get here if `to` is the root.
+            // For example: from='/foo'; to='/'
+            lastCommonSep = 0;
+          }
+        }
+        break;
+      }
+      var fromCode = from.charCodeAt(fromStart + i);
+      var toCode = to.charCodeAt(toStart + i);
+      if (fromCode !== toCode)
+        break;
+      else if (fromCode === 47 /*/*/)
+        lastCommonSep = i;
+    }
+
+    var out = '';
+    // Generate the relative path based on the path difference between `to`
+    // and `from`
+    for (i = fromStart + lastCommonSep + 1; i <= fromEnd; ++i) {
+      if (i === fromEnd || from.charCodeAt(i) === 47 /*/*/) {
+        if (out.length === 0)
+          out += '..';
+        else
+          out += '/..';
+      }
+    }
+
+    // Lastly, append the rest of the destination (`to`) path that comes after
+    // the common path parts
+    if (out.length > 0)
+      return out + to.slice(toStart + lastCommonSep);
+    else {
+      toStart += lastCommonSep;
+      if (to.charCodeAt(toStart) === 47 /*/*/)
+        ++toStart;
+      return to.slice(toStart);
+    }
+  },
+
+  _makeLong: function _makeLong(path) {
+    return path;
+  },
+
+  dirname: function dirname(path) {
+    assertPath(path);
+    if (path.length === 0) return '.';
+    var code = path.charCodeAt(0);
+    var hasRoot = code === 47 /*/*/;
+    var end = -1;
+    var matchedSlash = true;
+    for (var i = path.length - 1; i >= 1; --i) {
+      code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          if (!matchedSlash) {
+            end = i;
+            break;
+          }
+        } else {
+        // We saw the first non-path separator
+        matchedSlash = false;
+      }
+    }
+
+    if (end === -1) return hasRoot ? '/' : '.';
+    if (hasRoot && end === 1) return '//';
+    return path.slice(0, end);
+  },
+
+  basename: function basename(path, ext) {
+    if (ext !== undefined && typeof ext !== 'string') throw new TypeError('"ext" argument must be a string');
+    assertPath(path);
+
+    var start = 0;
+    var end = -1;
+    var matchedSlash = true;
+    var i;
+
+    if (ext !== undefined && ext.length > 0 && ext.length <= path.length) {
+      if (ext.length === path.length && ext === path) return '';
+      var extIdx = ext.length - 1;
+      var firstNonSlashEnd = -1;
+      for (i = path.length - 1; i >= 0; --i) {
+        var code = path.charCodeAt(i);
+        if (code === 47 /*/*/) {
+            // If we reached a path separator that was not part of a set of path
+            // separators at the end of the string, stop now
+            if (!matchedSlash) {
+              start = i + 1;
+              break;
+            }
+          } else {
+          if (firstNonSlashEnd === -1) {
+            // We saw the first non-path separator, remember this index in case
+            // we need it if the extension ends up not matching
+            matchedSlash = false;
+            firstNonSlashEnd = i + 1;
+          }
+          if (extIdx >= 0) {
+            // Try to match the explicit extension
+            if (code === ext.charCodeAt(extIdx)) {
+              if (--extIdx === -1) {
+                // We matched the extension, so mark this as the end of our path
+                // component
+                end = i;
+              }
+            } else {
+              // Extension does not match, so our result is the entire path
+              // component
+              extIdx = -1;
+              end = firstNonSlashEnd;
+            }
+          }
+        }
+      }
+
+      if (start === end) end = firstNonSlashEnd;else if (end === -1) end = path.length;
+      return path.slice(start, end);
+    } else {
+      for (i = path.length - 1; i >= 0; --i) {
+        if (path.charCodeAt(i) === 47 /*/*/) {
+            // If we reached a path separator that was not part of a set of path
+            // separators at the end of the string, stop now
+            if (!matchedSlash) {
+              start = i + 1;
+              break;
+            }
+          } else if (end === -1) {
+          // We saw the first non-path separator, mark this as the end of our
+          // path component
+          matchedSlash = false;
+          end = i + 1;
+        }
+      }
+
+      if (end === -1) return '';
+      return path.slice(start, end);
+    }
+  },
+
+  extname: function extname(path) {
+    assertPath(path);
+    var startDot = -1;
+    var startPart = 0;
+    var end = -1;
+    var matchedSlash = true;
+    // Track the state of characters (if any) we see before our first dot and
+    // after any path separator we find
+    var preDotState = 0;
+    for (var i = path.length - 1; i >= 0; --i) {
+      var code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          // If we reached a path separator that was not part of a set of path
+          // separators at the end of the string, stop now
+          if (!matchedSlash) {
+            startPart = i + 1;
+            break;
+          }
+          continue;
+        }
+      if (end === -1) {
+        // We saw the first non-path separator, mark this as the end of our
+        // extension
+        matchedSlash = false;
+        end = i + 1;
+      }
+      if (code === 46 /*.*/) {
+          // If this is our first dot, mark it as the start of our extension
+          if (startDot === -1)
+            startDot = i;
+          else if (preDotState !== 1)
+            preDotState = 1;
+      } else if (startDot !== -1) {
+        // We saw a non-dot and non-path separator before our dot, so we should
+        // have a good chance at having a non-empty extension
+        preDotState = -1;
+      }
+    }
+
+    if (startDot === -1 || end === -1 ||
+        // We saw a non-dot character immediately before the dot
+        preDotState === 0 ||
+        // The (right-most) trimmed path component is exactly '..'
+        preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+      return '';
+    }
+    return path.slice(startDot, end);
+  },
+
+  format: function format(pathObject) {
+    if (pathObject === null || typeof pathObject !== 'object') {
+      throw new TypeError('The "pathObject" argument must be of type Object. Received type ' + typeof pathObject);
+    }
+    return _format('/', pathObject);
+  },
+
+  parse: function parse(path) {
+    assertPath(path);
+
+    var ret = { root: '', dir: '', base: '', ext: '', name: '' };
+    if (path.length === 0) return ret;
+    var code = path.charCodeAt(0);
+    var isAbsolute = code === 47 /*/*/;
+    var start;
+    if (isAbsolute) {
+      ret.root = '/';
+      start = 1;
+    } else {
+      start = 0;
+    }
+    var startDot = -1;
+    var startPart = 0;
+    var end = -1;
+    var matchedSlash = true;
+    var i = path.length - 1;
+
+    // Track the state of characters (if any) we see before our first dot and
+    // after any path separator we find
+    var preDotState = 0;
+
+    // Get non-dir info
+    for (; i >= start; --i) {
+      code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          // If we reached a path separator that was not part of a set of path
+          // separators at the end of the string, stop now
+          if (!matchedSlash) {
+            startPart = i + 1;
+            break;
+          }
+          continue;
+        }
+      if (end === -1) {
+        // We saw the first non-path separator, mark this as the end of our
+        // extension
+        matchedSlash = false;
+        end = i + 1;
+      }
+      if (code === 46 /*.*/) {
+          // If this is our first dot, mark it as the start of our extension
+          if (startDot === -1) startDot = i;else if (preDotState !== 1) preDotState = 1;
+        } else if (startDot !== -1) {
+        // We saw a non-dot and non-path separator before our dot, so we should
+        // have a good chance at having a non-empty extension
+        preDotState = -1;
+      }
+    }
+
+    if (startDot === -1 || end === -1 ||
+    // We saw a non-dot character immediately before the dot
+    preDotState === 0 ||
+    // The (right-most) trimmed path component is exactly '..'
+    preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+      if (end !== -1) {
+        if (startPart === 0 && isAbsolute) ret.base = ret.name = path.slice(1, end);else ret.base = ret.name = path.slice(startPart, end);
+      }
+    } else {
+      if (startPart === 0 && isAbsolute) {
+        ret.name = path.slice(1, startDot);
+        ret.base = path.slice(1, end);
+      } else {
+        ret.name = path.slice(startPart, startDot);
+        ret.base = path.slice(startPart, end);
+      }
+      ret.ext = path.slice(startDot, end);
+    }
+
+    if (startPart > 0) ret.dir = path.slice(0, startPart - 1);else if (isAbsolute) ret.dir = '/';
+
+    return ret;
+  },
+
+  sep: '/',
+  delimiter: ':',
+  win32: null,
+  posix: null
+};
+
+posix.posix = posix;
+
+module.exports = posix;
+
+}).call(this)}).call(this,require('_process'))
+},{"_process":34}],34:[function(require,module,exports){
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],35:[function(require,module,exports){
 const bel = require('bel')
 const iheader = require('i-header')
 const ibody = require('i-body')
@@ -1583,15 +2432,15 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
     if (theme && theme.props) {
         var { color, bgColor, borderWidth, borderStyle, borderColor, padding } = theme.props
     }
-    // const send = protocol( get )
     function layout(style) {
         const modal = document.createElement('i-modal')
         const root = modal.attachShadow({mode: 'closed'})
         modal.dataset.ui = ui
         const closeIcon = new icon({name: 'cross'})
         const close = bel`<button role="button" data-ui="close" aria-label="close modal" aria-controls="close modal" onclick="${() => handleClose(modal)}">${closeIcon}</button>`
+        const role =  ui === 'step-modal' || ui === 'action-modal' ? 'contentinfo' : 'dialog'
         const el = bel`
-        <div role="dialog" class="i-modal" aria-label="${ui}">
+        <div role="${role}" class="i-modal" aria-label="${ui}">
             ${ui === 'help-modal' ? close : null}
             ${iheader({label: 'create new account', content: header, ui, theme: theme ? theme.header : void 0 })}
             ${ibody({label: 'modal body', content: body === '' ? nocontent() : body, ui, theme: theme ? theme.body : void 0 })}
@@ -1610,7 +2459,6 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         console.log(m)
     }
 
-    // @TODO: fix svg unvisible on iphone 06/11/2021
     const style = `
     :host(i-modal) {
         position: relative;
@@ -1711,11 +2559,11 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
     `
     return layout(style)
 }
-},{"bel":8,"i-body":33,"i-header":34,"i-nocontent":35,"icon":36,"supportCSSStyleSheet":37}],33:[function(require,module,exports){
+},{"bel":9,"i-body":36,"i-header":37,"i-nocontent":38,"icon":39,"supportCSSStyleSheet":41}],36:[function(require,module,exports){
 const styleSheet = require('./supportCSSStyleSheet')
 module.exports = body
 
-function body ({label, content, ui, theme}) {
+function body ({content, ui, theme}) {
     // insert CSS style
     const customStyle = theme ? theme.style : ''
     // set CSS variables
@@ -2066,12 +2914,12 @@ function body ({label, content, ui, theme}) {
     `
     return layout(style)
 }
-},{"./supportCSSStyleSheet":37}],34:[function(require,module,exports){
+},{"./supportCSSStyleSheet":41}],37:[function(require,module,exports){
 const bel = require('bel')
 const styleSheet = require('./supportCSSStyleSheet')
 module.exports = header
 
-function header({len = 1, label, content, ui, theme}) {
+function header({count = 1, label, content, ui, theme}) {
     // insert CSS style
     const customStyle = theme ? theme.style : ''
     // set CSS variables
@@ -2085,8 +2933,8 @@ function header({len = 1, label, content, ui, theme}) {
         // create custom html tag element
         const e = document.createElement('i-header')
         const root = e.attachShadow({mode: 'closed'})
-        const badge = bel`<span class="badge">${len}</span>`
-        const h1 = bel`<h1 aria-label="${label}">${len > 0 ? badge : null}${content}</h1>`
+        const badge = bel`<span class="badge">${count}</span>`
+        const h1 = bel`<h1 aria-label="${label}">${ui === 'help-modal' ? badge : null}${content}</h1>`
         e.dataset.ui = ui
         styleSheet(root, style)
         root.append(h1)
@@ -2151,7 +2999,7 @@ function header({len = 1, label, content, ui, theme}) {
 }
 
 
-},{"./supportCSSStyleSheet":37,"bel":8}],35:[function(require,module,exports){
+},{"./supportCSSStyleSheet":41,"bel":9}],38:[function(require,module,exports){
 module.exports = nocontent
 
 function nocontent () {
@@ -2180,7 +3028,7 @@ const style = `
     text-align: center;
 }
 `
-},{}],36:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 const svg = require('datdot-ui-graphic')
 function icon ({classname, name}) {
     const el = svg({css: classname ? `icon ${classname}` : 'icon', path: `./svg/${name}.svg`})
@@ -2188,7 +3036,31 @@ function icon ({classname, name}) {
 }
 module.exports = icon
 
-},{"datdot-ui-graphic":28}],37:[function(require,module,exports){
+},{"datdot-ui-graphic":29}],40:[function(require,module,exports){
+const styleSheet = require('./supportCSSStyleSheet')
+module.exports = logs
+
+function logs (e) {
+    const ilog = document.createElement('i-log')
+    const root = ilog.attachShadow({mode: 'closed'})
+    styleSheet(root, style)
+    root.innerHTML = "<h1>Debug mode</h1>"
+    return ilog
+}
+
+const style = `
+:host(i-log) {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 40vw;
+    height: 100vh;
+    font-size: 12px;
+    color: #fff;
+    background-color: hsl(223, 13%, 20%);
+}
+`
+},{"./supportCSSStyleSheet":41}],41:[function(require,module,exports){
 module.exports = supportCSSStyleSheet
 function supportCSSStyleSheet (root, style) {
     return (() => {

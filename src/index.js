@@ -17,15 +17,15 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
     if (theme && theme.props) {
         var { color, bgColor, borderWidth, borderStyle, borderColor, padding } = theme.props
     }
-    // const send = protocol( get )
     function layout(style) {
         const modal = document.createElement('i-modal')
         const root = modal.attachShadow({mode: 'closed'})
         modal.dataset.ui = ui
         const closeIcon = new icon({name: 'cross'})
         const close = bel`<button role="button" data-ui="close" aria-label="close modal" aria-controls="close modal" onclick="${() => handleClose(modal)}">${closeIcon}</button>`
+        const role =  ui === 'step-modal' || ui === 'action-modal' ? 'contentinfo' : 'dialog'
         const el = bel`
-        <div role="dialog" class="i-modal" aria-label="${ui}">
+        <div role="${role}" class="i-modal" aria-label="${ui}">
             ${ui === 'help-modal' ? close : null}
             ${iheader({label: 'create new account', content: header, ui, theme: theme ? theme.header : void 0 })}
             ${ibody({label: 'modal body', content: body === '' ? nocontent() : body, ui, theme: theme ? theme.body : void 0 })}
@@ -44,7 +44,6 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         console.log(m)
     }
 
-    // @TODO: fix svg unvisible on iphone 06/11/2021
     const style = `
     :host(i-modal) {
         position: relative;

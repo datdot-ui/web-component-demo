@@ -1,42 +1,51 @@
 const modal = require('..')
 const bel = require('bel')
 const csjs = require('csjs-inject')
-const { newAccountOpt, runPlanOpt, transferOpt, helpOpt } = require('options')
+const logs = require('../src/node_modules/logs')
+const actions = require('actions')
+const { newAccountOpt, planPlayOpt, transferOpt, helpOpt } = require('options')
 
 function demoApp() {
     const recipients = []
     const createNewAccount = modal(newAccountOpt( createAccountProtocol('create-account') ), createAccountProtocol('create-new-account'))
-    const runPlan = modal(runPlanOpt( runPlanProtocol('run-plan') ), runPlanProtocol('run-plan') )
+    const planPlay = modal(planPlayOpt( planPlayProtocol('run-plan') ), planPlayProtocol('run-plan') )
     const transfer = modal(transferOpt( transferProtocol('transfer') ), transferProtocol('transfer'))
     const help = modal(helpOpt( helpProtocol('help') ), helpProtocol('help'))
-    const app = bel`
+    const demo = bel`
+    <div class="demo">
+        ${appendElement({title: 'Default', item: planPlay})}
+        ${appendElement({title: 'Step', item: createNewAccount})}
+        ${appendElement({title: 'Action', item: transfer})}
+        ${appendElement({title: 'Help', item: help})}
+    </div>`
+    const container = bel`
     <div class="${css.container}">
-        <section>
-            <h1>Step modal</h1>
-            ${createNewAccount}
-        </section>
-        <section>
-            <h1>Default modal</h1>
-            ${runPlan}
-        </section>
-        <section>
-            <h1>Action modal</h1>
-            ${transfer}
-        </section>
-        <section>
-            <h1>Help modal</h1>
-            ${help}
-        </section>
+        ${actions( protocol('actions') )}
+        ${demo}
     </div>
     `
 
+    const app = bel`
+    <div class="${css.wrap}" data-state="debug">
+        ${container}${logs()}
+    </div>`
+
     return app
+
+    function appendElement({title, item}) {
+        const el = bel`
+        <section class="${title.toLowerCase()}">
+            <h1>${title} modal</h1>
+            ${item}
+        </section>`
+        return el
+    }
 
     function helpProtocol (name) {
         return protocol(name)
     }
 
-    function runPlanProtocol (name) {
+    function planPlayProtocol (name) {
         return protocol(name)
     }
 
@@ -48,10 +57,26 @@ function demoApp() {
         return protocol(name)
     }
 
+    function handleActions(name, body) {
+        const items = [...demo.children]
+        items.map( item => {
+            item.ariaHidden = true
+            if (item.classList.contains(body) ) item.ariaHidden = false
+            if (body === 'all') item.ariaHidden = false
+        })
+    }
+
+    function handleClickProtocol (msg) {
+        const {from, flow, body} = msg
+        if (flow === 'actions') handleActions(from, body)
+    }
+
     function protocol (name) {
         return sender => {
             recipients[name] = sender
             return (msg) => {
+                const {type} = msg
+                if (type === 'click') handleClickProtocol(msg)
                 console.log( msg );
             }
         }
@@ -132,13 +157,28 @@ body {
     padding: 0;
     font-size: var(--primary-font-size);
     font-family: var(--primary-font);
+    background-color: hsl(223, 13%, 20%);
+}
+.wrap {
+    display: grid;
+}
+[data-state="view"] i-log {
+    visibility: hidden;
+}
+[data-state="debug"] {
+    grid-template-rows: 100%;
+    grid-template-columns: auto 40vw;
 }
 .container {
     display: grid;
     grid-template-rows: auto;
     grid-template-columns: 90%;
     justify-content: center;
-    margin-top: 20px;
+    padding: 20px 0 80px 0;
+    background-color: var(--color-white);
+}
+[aria-hidden="true"] {
+    display: none;
 }
 `
 
