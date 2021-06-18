@@ -4,13 +4,14 @@ const ibody = require('i-body')
 const nocontent = require('i-nocontent')
 const styleSheet = require('supportCSSStyleSheet')
 const icon = require('icon')
+const file = require('path').basename(__filename)
 
 // const myElement = require('test')
 module.exports = component
 
-function component({name = 'modal', flow, header, body = nocontent(), ui = 'default', theme }, protocol) {
-    const widget = 'ui-modal'
+function component({page, name = 'modal', flow = 'ui-modal', header, body = nocontent(), ui = 'default', theme }, protocol) {
     const sender = protocol( get )
+    sender({page, from: name, flow, type: 'ready', fn: 'component', file, line: 15 })
     // insert CSS style
     const customStyle = theme ? theme.style : ''
     // set CSS variables
@@ -30,14 +31,16 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
             ${iheader({label: 'create new account', content: header, ui, theme: theme ? theme.header : void 0 })}
             ${ibody({label: 'modal body', content: body === '' ? nocontent() : body, ui, theme: theme ? theme.body : void 0 })}
         </div>`
+        // style loades first
         styleSheet(root, style)
+        // shadow loades second
         root.append(el)
         return modal
     }
 
     function handleClose (modal) {
         modal.remove()
-        return sender({flow: flow ? `${flow}/${widget}/${ui}` : `${widget}/${ui}`, from: name, type: 'closed'})
+        sender({flow: `${flow}/${ui}`, from: name, type: 'closed', file, fn: 'handleClose', line: 43})
     }
 
     function get(m) {
@@ -75,38 +78,38 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
         --modal-padding: ${padding ? padding : '0'};
         padding: var(--modal-padding);
-        color: var(--modal-color);
-        background-color: var(--modal-bgColor);
+        color: hsl( var(--modal-color) );
+        background-color: hsl( var(--modal-bgColor) );
         border: var(--modal-border);
     }
     :host(i-modal) .i-modal:focus, :host(i-modal) .i-modal:focus-within {
         --outline-border-width: 4px; 
         --outline-style: ridge;
         --outline-color: var(--color-greyE2);
-        --outline: var(--outline-border-width) var(--outline-style) var(--outline-color);
+        --outline: var(--outline-border-width) var(--outline-style) hsl( var(--outline-color) );
         outline: var(--outline);
     }
     :host(i-modal[data-ui="default"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-border-width: ${borderWidth ? borderWidth : '1px'};
         --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
         --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
-        --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-border: var(--modal-border-width) var(--modal-border-style) hsl( var(--modal-border-color) );
         --modal-padding: ${padding ? padding : '30px 34px'};
     }
     :host(i-modal[data-ui="step-modal"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-padding: ${padding ? padding : '0'};
     }
     :host(i-modal[data-ui="action-modal"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-border-top-width: ${borderWidth ? borderWidth : '8px'};
         --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
         --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
-        --modal-border-top: var(--modal-border-top-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-border-top: var(--modal-border-top-width) var(--modal-border-style) hsl( var(--modal-border-color) );
         --modal-padding: ${padding ? padding : '25px 50px'};
         border-top: var(--modal-border-top);
     }
@@ -115,7 +118,7 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         outline: none;
     }
     :host(i-modal[data-ui="help-modal"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-border-color: ${borderColor ? borderColor : 'var(--color-greyE2)'};
         --modal-border-width: ${borderWidth ? borderWidth : '1px'};
@@ -129,13 +132,14 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         outline: none;
     }
     :host(i-modal) button[data-ui="close"] {
+        --bgColor: var(--color-white);
         position: absolute;
         right: -7px;
         top: -7px;
         border-radius: 50%;
         width: 22px;
         height: 22px;
-        background-color: var(--color-white);
+        background-color: hsl(var(--bgColor));
         border: none;
         box-shadow: 0px 3px 6px hsla(0, 0%, 0%, 0.16);
     }

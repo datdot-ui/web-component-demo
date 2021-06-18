@@ -1,15 +1,21 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function (__filename){(function (){
 const modal = require('..')
 const bel = require('bel')
 const csjs = require('csjs-inject')
 const logs = require('../src/node_modules/logs')
 const actions = require('actions')
+const file = require('path').basename(__filename)
 const { newAccountOpt, planPlayOpt, transferOpt, helpOpt } = require('options')
 
 function demoApp() {
+    // save protocol callbacks
     const recipients = []
+    // logs must be initialized first before components
+    const logList = logs(protocol('logs'))
+    // modal templates
     const createNewAccount = modal(newAccountOpt( createAccountProtocol('create-account') ), createAccountProtocol('create-new-account'))
-    const planPlay = modal(planPlayOpt( planPlayProtocol('run-plan') ), planPlayProtocol('run-plan') )
+    const planPlay = modal(planPlayOpt( planPlayProtocol('plan-play') ), planPlayProtocol('plan-play') )
     const transfer = modal(transferOpt( transferProtocol('transfer') ), transferProtocol('transfer'))
     const help = modal(helpOpt( helpProtocol('help') ), helpProtocol('help'))
     const demo = bel`
@@ -28,7 +34,7 @@ function demoApp() {
 
     const app = bel`
     <div class="${css.wrap}" data-state="debug">
-        ${container}${logs()}
+        ${container}${logList}
     </div>`
 
     return app
@@ -41,7 +47,6 @@ function demoApp() {
         </section>`
         return el
     }
-
     function helpProtocol (name) {
         return protocol(name)
     }
@@ -67,18 +72,31 @@ function demoApp() {
         })
     }
 
-    function handleClickProtocol (msg) {
-        const {from, flow, body} = msg
-        if (flow === 'actions') handleActions(from, body)
+    function handleDebugMode (app, state) {
+        if (state === 'true') {
+            app.dataset.state = 'debug'
+            recipients['logs']({from: 'debug', flow: 'demo', type: 'opened', fn: 'handleDebugMode', file, line: 75})
+        } else {
+            app.dataset.state = 'view'
+            recipients['logs']({from: 'debug', flow: 'demo', type: 'closed', fn: 'handleDebugMode', file, line: 78})
+        }
+        
     }
 
+    function handleClickProtocol (msg) {
+        const {from, flow, state, body, file, line} = msg
+        if (flow === 'actions' && from === 'debug') return handleDebugMode(app, state)
+        if (flow === 'actions') return handleActions(from, body)
+    }
+    
     function protocol (name) {
         return sender => {
             recipients[name] = sender
             return (msg) => {
-                const {type} = msg
-                if (type === 'click') handleClickProtocol(msg)
-                console.log( msg );
+                const {page, from, flow, type, file, line} = msg
+                console.log( `type: ${type}, file: ${file}, line: ${line}`);
+                recipients['logs'](msg)
+                if (type === 'click') return handleClickProtocol(msg)
             }
         }
     }
@@ -86,66 +104,71 @@ function demoApp() {
 
 const css = csjs`
 :root {
-  --color-white: #FFF;
-  --color-black: #000;
-  --color-blue: #006FFF;
-  --color-red: #FE1016;
-  --color-orange: #FFA72A;
-  --color-ultra-red: #FC708B;
-  --color-flame: #E64B19;
-  --color-verdigris: #33A9A9;
-  --color-maya-blue: #72C3FC;
-  --color-slate-blue: #695AD1;
-  --color-blue-jeans: #3CB0FB;
-  --color-dodger-blue: #378BF4;
-  --color-slimy-green: #1C9100;
-  --color-green-pigment: #109B36;
-  --color-chrome-yellow: #FFA700;
-  --color-bright-yellow-crayola: #FFA72A;
-  --color-purple: #B700FF;
-  --color-medium-purple: #B066FF;
-  --color-grey33: #333;
-  --color-grey66: #666;
-  --color-grey70: #707070;
-  --color-grey88: #888;
-  --color-greyA2: #A2A2A2;
-  --color-greyC3: #C3C3C3;
-  --color-greyCB: #CBCBCB;
-  --color-greyD8: #D8D8D8;
-  --color-greyD9: #D9D9D9;
-  --color-greyE2: #E2E2E2;
-  --color-greyEB: #EBEBEB;
-  --color-greyED: #EDEDED;
-  --color-greyEF: #EFEFEF;
-  --color-greyF2: #F2F2F2;
-  --color-green: #109B36;
-  --transparent: transparent;
-  --define-font: *---------------------------------------------*;
-  --snippet-font: Segoe UI Mono, Monospace, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas;
-  --size12: 1.2rem;
-  --size14: 1.4rem;
-  --size16: 1.6rem;
-  --size18: 1.8rem;
-  --size20: 2rem;
-  --size22: 2.2rem;
-  --size24: 2.4rem;
-  --size26: 2.6rem;
-  --size28: 2.8rem;
-  --size30: 3rem;
-  --size32: 3.2rem;
-  --size36: 3.6rem;
-  --size40: 4rem;
-  --weight100: 100;
-  --weight300: 300;
-  --weight400: 400;
-  --weight600: 600;
-  --weight800: 800;
-  --define-primary: *---------------------------------------------*;
-  --primary-color: var(--color-black);
-  --primary-bgColor: var(--color-white);
-  --primary-font: Arial, sens-serif;
-  --primary-font-size: var(--size16);
-  --primary-input-radius: 8px;
+    --b: 0, 0%;
+    --r: 100%, 50%;
+    --color-white: var(--b), 100%;
+    --color-black: var(--b), 0%;
+    --color-dark: 223, 13%, 20%;
+    --color-deep-black: 222, 18%, 11%;
+    --color-blue: 214, var(--r);
+    --color-red: 358, 99%, 53%;
+    --color-orange: 35, 100%, 58%;
+    --color-ultra-red: 348, 96%, 71%;
+    --color-flame: 15, 80%, 50%;
+    --color-verdigris: 180, 54%, 43%;
+    --color-maya-blue: 205, 96%, 72%;
+    --color-slate-blue: 248, 56%, 59%;
+    --color-blue-jeans: 204, 96%, 61%;
+    --color-dodger-blue: 213, 90%, 59%;
+    --color-slimy-green: 108, 100%, 28%;
+    --color-maximum-blue-green: 180, 54%, 51%;
+    --color-green-pigment: 136, 81%, 34%;
+    --color-chrome-yellow: 39, var(--r);
+    --color-bright-yellow-crayola: 35, 100%, 58%;
+    --color-purple: 283, var(--r);
+    --color-medium-purple: 269, 100%, 70%;
+    --color-grey33: var(--b), 20%;
+    --color-grey66: var(--b), 40%;
+    --color-grey70: var(--b), 44%;
+    --color-grey88: var(--b), 53%;
+    --color-greyA2: var(--b), 64%;
+    --color-greyC3: var(--b), 76%;
+    --color-greyCB: var(--b), 80%;
+    --color-greyD8: var(--b), 85%;
+    --color-greyD9: var(--b), 85%;
+    --color-greyE2: var(--b), 89%;
+    --color-greyEB: var(--b), 92%;
+    --color-greyED: var(--b), 93%;
+    --color-greyEF: var(--b), 94%;
+    --color-greyF2: var(--b), 95%;
+    --color-green: 136, 81%, 34%;
+    --transparent: transparent;
+    --define-font: *---------------------------------------------*;
+    --snippet-font: Segoe UI Mono, Monospace, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas;
+    --size12: 1.2rem;
+    --size14: 1.4rem;
+    --size16: 1.6rem;
+    --size18: 1.8rem;
+    --size20: 2rem;
+    --size22: 2.2rem;
+    --size24: 2.4rem;
+    --size26: 2.6rem;
+    --size28: 2.8rem;
+    --size30: 3rem;
+    --size32: 3.2rem;
+    --size36: 3.6rem;
+    --size40: 4rem;
+    --weight100: 100;
+    --weight300: 300;
+    --weight400: 400;
+    --weight600: 600;
+    --weight800: 800;
+    --define-primary: *---------------------------------------------*;
+    --primary-color: var(--color-black);
+    --primary-bgColor: var(--color-white);
+    --primary-font: Arial, sens-serif;
+    --primary-font-size: var(--size16);
+    --primary-input-radius: 8px;
 }
 * {
     box-sizing: border-box;
@@ -158,7 +181,6 @@ body {
     padding: 0;
     font-size: var(--primary-font-size);
     font-family: var(--primary-font);
-    background-color: hsl(223, 13%, 20%);
 }
 .wrap {
     display: grid;
@@ -167,25 +189,32 @@ body {
     visibility: hidden;
 }
 [data-state="debug"] {
-    grid-template-rows: 100vh;
-    grid-template-columns: auto 40vw;
+    grid-template-rows: auto;
+    grid-template-columns: 60vw auto;
 }
 .container {
     display: grid;
     grid-template-rows: auto;
     grid-template-columns: 90%;
     justify-content: center;
-    align-content: baseline;
     padding: 20px 0 80px 0;
     background-color: var(--color-white);
 }
 [aria-hidden="true"] {
     display: none;
 }
+@media (max-width: 960px) {
+    [data-state="debug"] {
+        grid-template-rows: auto;
+        grid-template-columns: auto;
+        padding-bottom: 28vh;
+    }
+}
 `
 
 document.body.append( demoApp() )
-},{"..":35,"../src/node_modules/logs":40,"actions":6,"bel":9,"csjs-inject":12,"options":7}],2:[function(require,module,exports){
+}).call(this)}).call(this,"/demo/demo.js")
+},{"..":35,"../src/node_modules/logs":40,"actions":6,"bel":9,"csjs-inject":12,"options":7,"path":33}],2:[function(require,module,exports){
 (function (__filename){(function (){
 const bel = require('bel')
 const icon = require('../../src/node_modules/icon')
@@ -193,9 +222,9 @@ const file = require('path').basename(__filename)
 
 module.exports = createAccount
 
-function createAccount(protocol) {
+function createAccount ({page, flow = 'layout', name = 'create-new-account'}, protocol) {
     const sender = protocol( get )
-    sender({from: 'create-new-account', type: 'ready', action: 'createAccount', file, line: 9 })
+    sender({page, from: name , flow, type: 'ready', fn: 'createAccount', file, line: 9 })
     let address = 'hyper://'
     const input = bel`<input type="text" name="custom address" arial-label="Custom address" aria-required="true" value="${address}">`
     const customAddress = bel`<div class="col3 address">${input}</div>`
@@ -260,7 +289,7 @@ function createAccount(protocol) {
         el.ariaLabel = label
         el.replaceChild(toggleIcon, el.querySelector('.icon'))
         createAccountElement.querySelector(`[name="${target}"]`).type = type
-        sender({flow: 'create-account', state, body: target })
+        sender({from: target, flow: 'create-account/button', type: 'click', body: state, fn: 'toggleIcon', file, line: 74})
     }
 
     function get (msg) {
@@ -277,9 +306,9 @@ const file = require('path').basename(__filename)
 
 module.exports = help
 
-function help (protocol) {
+function help ({page, flow = 'layout', name = 'plan-summary-list'}, protocol) {
     const sender = protocol (get)
-    sender({from: 'plan-summary-list', type: 'ready', file, line: 9 })
+    sender({page, from: name, flow, type: 'ready', fn: 'help', file, line: 9 })
     const arrowRightIcon = new icon({name: 'arrow-right'})
     const helpElement = bel`
     <section aria-current="Plan summary list">
@@ -303,15 +332,15 @@ const file = require('path').basename(__filename)
 
 module.exports = planPlay
 
-function planPlay (plan = null, protocol) {
+function planPlay ({name = null, flow = 'layout', page}, protocol) {
     const sender = protocol (get)
-    sender({from: 'plan-play', type: 'ready', file, line: 9 })
+    sender({page, from: `plan-play/${name}`, flow, type: 'ready', fn: 'planPlay', file, line: 9 })
     const cancelButton = bel`<button class="btn" data-action="cancel" aria-label="Cancel" onclick="${() => handleCancel()}">Cancel</button>`
     const confirmButton = bel`<button class="btn" data-action="confirm" aria-label="Confirm" onclick="${() => handleConfirm()}">Confirm</button>`
     const el = bel`
-    <section class="row" data-action="run-plan" aria-label="run plan"> 
+    <section class="row" data-action="plan-play" aria-label="Plan play"> 
         <p>
-            Do you determine to be a sponsor for <strong>${plan}</strong>?<br/>
+            Do you determine to be a sponsor for <strong>${name}</strong>?<br/>
             This action will be continuous paying via your schedule.
         </p>
         <div class="actions" role="action">
@@ -322,11 +351,11 @@ function planPlay (plan = null, protocol) {
     return el
 
     function handleCancel () {
-        sender({from: 'run-plan', type: 'ready'})
+        sender({from: `${name}/cancel`, flow: 'plan-play/button', type: 'click', fn: 'handleCancel', file, line: 25})
     }
 
     function handleConfirm () {
-        console.log('confirm');
+        sender({from: `${name}/confirm`, flow: 'plan-play/button', type: 'click', fn: 'handleConfirm', file, line: 29})
     }
 
     function get (msg) {
@@ -341,34 +370,39 @@ const file = require('path').basename(__filename)
 
 module.exports = transfer
 
-function transfer(protocol) {
+function transfer ({account, page}, protocol) {
+    const {name, address} = account
     const sender = protocol( get )
-    sender({from: 'transfer', type: 'ready', file, line: 9 })
-    const cancelButton = bel`<button class="btn" data-action="cancel" aria-label="Cancel" onclick="${() => handleCancel()}">Cancel</button>`
-    const transferButton = bel`<button class="btn" data-action="confirm" aria-label="Transfer" onclick="${() => handleTransfer()}">Transfer</button>`
+    sender({page, from: 'transfer', flow: 'layout', type: 'ready', fn: 'transfer', file, line: 9 })
+    const accountName = name
+    const transferTo = bel`<input role="input" type="text" aria-label="Transfer to account address" aria-require="true" value="12XV6KZCEwF9D1rsM8aCu21UP3z9t95ZCg">`
+    const transferPrice = bel`<input role="input" type="number" aria-label="Price" aria-require="true" value="0">`
+    const fee = 0.2
+    const cancelButton = bel`<button class="btn" data-action="cancel" aria-label="Cancel" onclick="${() => handleCancel(cancelButton.dataset.action)}">Cancel</button>`
+    const transferButton = bel`<button class="btn" data-action="transfer" aria-label="Transfer" onclick="${() => handleTransfer(transferButton.dataset.action)}">Transfer</button>`
     const transferElement = bel`
     <div class="form-field" data-action="transfer" aria-label="Transfer">
         <div class="row">
             <label for="from">From</label>
             <div class="info" aria-label="account name">
                 <img role="img" class="avatar" aria-label="account avatar" src="data:image/svg+xml;base64,PHN2ZyB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOmNjPSJodHRwOi8vY3JlYXRpdmVjb21tb25zLm9yZy9ucyMiIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyIgeG1sbnM6c3ZnPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTgwIDE4MCI+PG1ldGFkYXRhPjxyZGY6UkRGPjxjYzpXb3JrPjxkYzpmb3JtYXQ+aW1hZ2Uvc3ZnK3htbDwvZGM6Zm9ybWF0PjxkYzp0eXBlIHJkZjpyZXNvdXJjZT0iaHR0cDovL3B1cmwub3JnL2RjL2RjbWl0eXBlL1N0aWxsSW1hZ2UiLz48ZGM6dGl0bGU+Qm90dHRzPC9kYzp0aXRsZT48ZGM6Y3JlYXRvcj48Y2M6QWdlbnQ+PGRjOnRpdGxlPlBhYmxvIFN0YW5sZXk8L2RjOnRpdGxlPjwvY2M6QWdlbnQ+PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2U+aHR0cHM6Ly9ib3R0dHMuY29tLzwvZGM6c291cmNlPjxjYzpsaWNlbnNlIHJkZjpyZXNvdXJjZT0iaHR0cHM6Ly9ib3R0dHMuY29tLyIvPjxkYzpjb250cmlidXRvcj48Y2M6QWdlbnQ+PGRjOnRpdGxlPkZsb3JpYW4gS8O2cm5lcjwvZGM6dGl0bGU+PC9jYzpBZ2VudD48L2RjOmNvbnRyaWJ1dG9yPjwvY2M6V29yaz48L3JkZjpSREY+PC9tZXRhZGF0YT48cmVjdCBmaWxsPSJ0cmFuc3BhcmVudCIgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHg9IjAiIHk9IjAiLz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLCA2NikiPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTMgMTFIMTFWMzFIMTIuNEMxMC4xNTk4IDMxIDkuMDM5NjkgMzEgOC4xODQwNCAzMS40MzZDNy40MzEzOSAzMS44MTk1IDYuODE5NDcgMzIuNDMxNCA2LjQzNTk3IDMzLjE4NEM2IDM0LjAzOTcgNiAzNS4xNTk4IDYgMzcuNFYzOC42QzYgNDAuODQwMiA2IDQxLjk2MDMgNi40MzU5NyA0Mi44MTZDNi44MTk0NyA0My41Njg2IDcuNDMxMzkgNDQuMTgwNSA4LjE4NDA0IDQ0LjU2NEM5LjAzOTY5IDQ1IDEwLjE1OTggNDUgMTIuNCA0NUgxOFY1NS42QzE4IDU3Ljg0MDIgMTggNTguOTYwMyAxOC40MzYgNTkuODE2QzE4LjgxOTUgNjAuNTY4NiAxOS40MzE0IDYxLjE4MDUgMjAuMTg0IDYxLjU2NEMyMS4wMzk3IDYyIDIyLjE1OTggNjIgMjQuNCA2Mkg0Ny42QzQ5Ljg0MDIgNjIgNTAuOTYwMyA2MiA1MS44MTYgNjEuNTY0QzUyLjU2ODYgNjEuMTgwNSA1My4xODA1IDYwLjU2ODYgNTMuNTY0IDU5LjgxNkM1NCA1OC45NjAzIDU0IDU3Ljg0MDIgNTQgNTUuNlYyMC40QzU0IDE4LjE1OTggNTQgMTcuMDM5NyA1My41NjQgMTYuMTg0QzUzLjE4MDUgMTUuNDMxNCA1Mi41Njg2IDE0LjgxOTUgNTEuODE2IDE0LjQzNkM1MC45NjAzIDE0IDQ5Ljg0MDIgMTQgNDcuNiAxNEgyNC40QzIyLjE1OTggMTQgMjEuMDM5NyAxNCAyMC4xODQgMTQuNDM2QzE5LjQzMTQgMTQuODE5NSAxOC44MTk1IDE1LjQzMTQgMTguNDM2IDE2LjE4NEMxOCAxNy4wMzk3IDE4IDE4LjE1OTggMTggMjAuNFYzMUgxM1YxMVpNMTI2IDM0LjRDMTI2IDMyLjE1OTggMTI2IDMxLjAzOTcgMTI2LjQzNiAzMC4xODRDMTI2LjgxOSAyOS40MzE0IDEyNy40MzEgMjguODE5NSAxMjguMTg0IDI4LjQzNkMxMjkuMDQgMjggMTMwLjE2IDI4IDEzMi40IDI4SDE1NS42QzE1Ny44NCAyOCAxNTguOTYgMjggMTU5LjgxNiAyOC40MzZDMTYwLjU2OSAyOC44MTk1IDE2MS4xODEgMjkuNDMxNCAxNjEuNTY0IDMwLjE4NEMxNjIgMzEuMDM5NyAxNjIgMzIuMTU5OCAxNjIgMzQuNFY0NS42QzE2MiA0Ny44NDAyIDE2MiA0OC45NjAzIDE2MS41NjQgNDkuODE2QzE2MS4xODEgNTAuNTY4NiAxNjAuNTY5IDUxLjE4MDUgMTU5LjgxNiA1MS41NjRDMTU4Ljk2IDUyIDE1Ny44NCA1MiAxNTUuNiA1MkgxMzIuNEMxMzAuMTYgNTIgMTI5LjA0IDUyIDEyOC4xODQgNTEuNTY0QzEyNy40MzEgNTEuMTgwNSAxMjYuODE5IDUwLjU2ODYgMTI2LjQzNiA0OS44MTZDMTI2IDQ4Ljk2MDMgMTI2IDQ3Ljg0MDIgMTI2IDQ1LjZWMzQuNFoiIGZpbGw9IiMwMDc2REUiLz48bWFzayBpZD0ic2lkZXNBbnRlbm5hMDFNYXNrMCIgbWFzay10eXBlPSJhbHBoYSIgbWFza1VuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeD0iNiIgeT0iMTEiIHdpZHRoPSIxNTYiIGhlaWdodD0iNTEiPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTMgMTFIMTFWMzFIMTIuNEMxMC4xNTk4IDMxIDkuMDM5NjkgMzEgOC4xODQwNCAzMS40MzZDNy40MzEzOSAzMS44MTk1IDYuODE5NDcgMzIuNDMxNCA2LjQzNTk3IDMzLjE4NEM2IDM0LjAzOTcgNiAzNS4xNTk4IDYgMzcuNFYzOC42QzYgNDAuODQwMiA2IDQxLjk2MDMgNi40MzU5NyA0Mi44MTZDNi44MTk0NyA0My41Njg2IDcuNDMxMzkgNDQuMTgwNSA4LjE4NDA0IDQ0LjU2NEM5LjAzOTY5IDQ1IDEwLjE1OTggNDUgMTIuNCA0NUgxOFY1NS42QzE4IDU3Ljg0MDIgMTggNTguOTYwMyAxOC40MzYgNTkuODE2QzE4LjgxOTUgNjAuNTY4NiAxOS40MzE0IDYxLjE4MDUgMjAuMTg0IDYxLjU2NEMyMS4wMzk3IDYyIDIyLjE1OTggNjIgMjQuNCA2Mkg0Ny42QzQ5Ljg0MDIgNjIgNTAuOTYwMyA2MiA1MS44MTYgNjEuNTY0QzUyLjU2ODYgNjEuMTgwNSA1My4xODA1IDYwLjU2ODYgNTMuNTY0IDU5LjgxNkM1NCA1OC45NjAzIDU0IDU3Ljg0MDIgNTQgNTUuNlYyMC40QzU0IDE4LjE1OTggNTQgMTcuMDM5NyA1My41NjQgMTYuMTg0QzUzLjE4MDUgMTUuNDMxNCA1Mi41Njg2IDE0LjgxOTUgNTEuODE2IDE0LjQzNkM1MC45NjAzIDE0IDQ5Ljg0MDIgMTQgNDcuNiAxNEgyNC40QzIyLjE1OTggMTQgMjEuMDM5NyAxNCAyMC4xODQgMTQuNDM2QzE5LjQzMTQgMTQuODE5NSAxOC44MTk1IDE1LjQzMTQgMTguNDM2IDE2LjE4NEMxOCAxNy4wMzk3IDE4IDE4LjE1OTggMTggMjAuNFYzMUgxM1YxMVpNMTI2IDM0LjRDMTI2IDMyLjE1OTggMTI2IDMxLjAzOTcgMTI2LjQzNiAzMC4xODRDMTI2LjgxOSAyOS40MzE0IDEyNy40MzEgMjguODE5NSAxMjguMTg0IDI4LjQzNkMxMjkuMDQgMjggMTMwLjE2IDI4IDEzMi40IDI4SDE1NS42QzE1Ny44NCAyOCAxNTguOTYgMjggMTU5LjgxNiAyOC40MzZDMTYwLjU2OSAyOC44MTk1IDE2MS4xODEgMjkuNDMxNCAxNjEuNTY0IDMwLjE4NEMxNjIgMzEuMDM5NyAxNjIgMzIuMTU5OCAxNjIgMzQuNFY0NS42QzE2MiA0Ny44NDAyIDE2MiA0OC45NjAzIDE2MS41NjQgNDkuODE2QzE2MS4xODEgNTAuNTY4NiAxNjAuNTY5IDUxLjE4MDUgMTU5LjgxNiA1MS41NjRDMTU4Ljk2IDUyIDE1Ny44NCA1MiAxNTUuNiA1MkgxMzIuNEMxMzAuMTYgNTIgMTI5LjA0IDUyIDEyOC4xODQgNTEuNTY0QzEyNy40MzEgNTEuMTgwNSAxMjYuODE5IDUwLjU2ODYgMTI2LjQzNiA0OS44MTZDMTI2IDQ4Ljk2MDMgMTI2IDQ3Ljg0MDIgMTI2IDQ1LjZWMzQuNFoiIGZpbGw9IndoaXRlIi8+PC9tYXNrPjxnIG1hc2s9InVybCgjc2lkZXNBbnRlbm5hMDFNYXNrMCkiPjxyZWN0IHdpZHRoPSIxODAiIGhlaWdodD0iNzYiIGZpbGw9IiMyOUI2RjYiLz48cmVjdCB5PSIzOCIgd2lkdGg9IjE4MCIgaGVpZ2h0PSIzOCIgZmlsbD0iYmxhY2siIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9nPjxyZWN0IHg9IjExIiB5PSIxMSIgd2lkdGg9IjIiIGhlaWdodD0iMjAiIGZpbGw9IndoaXRlIiBmaWxsLW9wYWNpdHk9IjAuNCIvPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTIgMTJDMTQuMjA5MSAxMiAxNiAxMC4yMDkxIDE2IDhDMTYgNS43OTA4NiAxNC4yMDkxIDQgMTIgNEM5Ljc5MDg2IDQgOCA1Ljc5MDg2IDggOEM4IDEwLjIwOTEgOS43OTA4NiAxMiAxMiAxMloiIGZpbGw9IiNGRkVBOEYiLz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTEzIDlDMTQuMTA0NiA5IDE1IDguMTA0NTcgMTUgN0MxNSA1Ljg5NTQzIDE0LjEwNDYgNSAxMyA1QzExLjg5NTQgNSAxMSA1Ljg5NTQzIDExIDdDMTEgOC4xMDQ1NyAxMS44OTU0IDkgMTMgOVoiIGZpbGw9IndoaXRlIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQxLCAwKSI+PGcgZmlsdGVyPSJ1cmwoI3RvcEdsb3dpbmdCdWxiMDFGaWx0ZXIwKSI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0zMiAyNEMzMiAxNS4xNjM0IDM5LjE2MzQgOCA0OCA4SDUyQzYwLjgzNjYgOCA2OCAxNS4xNjM0IDY4IDI0VjMyQzY4IDM2LjQxODMgNjQuNDE4MyA0MCA2MCA0MEg0MEMzNS41ODE3IDQwIDMyIDM2LjQxODMgMzIgMzJWMjRaIiBmaWxsPSJ3aGl0ZSIgZmlsbC1vcGFjaXR5PSIwLjMiLz48L2c+PHBhdGggZD0iTTQ5IDExLjVDNTMuOTMxNSAxMS41IDU4LjM2NiAxMy42MjgxIDYxLjQzNTIgMTcuMDE2MiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTQ5LjgyODQgMjlMNDAuODI4NCAyMEwzOCAyMi44Mjg0TDQ4IDMyLjgyODRWNDBINTJWMzIuOTcwNkw2Mi4xNDIxIDIyLjgyODRMNTkuMzEzNyAyMEw1MC4zMTM3IDI5SDQ5LjgyODRaIiBmaWxsPSJ3aGl0ZSIgZmlsbC1vcGFjaXR5PSIwLjgiLz48cmVjdCB4PSIyMiIgeT0iNDAiIHdpZHRoPSI1NiIgaGVpZ2h0PSIxMiIgcng9IjEiIGZpbGw9IiMyOUI2RjYiLz48ZGVmcz48ZmlsdGVyIGlkPSJ0b3BHbG93aW5nQnVsYjAxRmlsdGVyMCIgeD0iMjQiIHk9IjAiIHdpZHRoPSI1MiIgaGVpZ2h0PSI0OCIgZmlsdGVyVW5pdHM9InVzZXJTcGFjZU9uVXNlIiBjb2xvci1pbnRlcnBvbGF0aW9uLWZpbHRlcnM9InNSR0IiPjxmZUZsb29kIGZsb29kLW9wYWNpdHk9IjAiIHJlc3VsdD0iQmFja2dyb3VuZEltYWdlRml4Ii8+PGZlQ29sb3JNYXRyaXggaW49IlNvdXJjZUFscGhhIiB0eXBlPSJtYXRyaXgiIHZhbHVlcz0iMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMTI3IDAiLz48ZmVPZmZzZXQvPjxmZUdhdXNzaWFuQmx1ciBzdGREZXZpYXRpb249IjQiLz48ZmVDb2xvck1hdHJpeCB0eXBlPSJtYXRyaXgiIHZhbHVlcz0iMCAwIDAgMCAxIDAgMCAwIDAgMSAwIDAgMCAwIDEgMCAwIDAgMC41IDAiLz48ZmVCbGVuZCBtb2RlPSJub3JtYWwiIGluMj0iQmFja2dyb3VuZEltYWdlRml4IiByZXN1bHQ9ImVmZmVjdDFfZHJvcFNoYWRvdyIvPjxmZUJsZW5kIG1vZGU9Im5vcm1hbCIgaW49IlNvdXJjZUdyYXBoaWMiIGluMj0iZWZmZWN0MV9kcm9wU2hhZG93IiByZXN1bHQ9InNoYXBlIi8+PGZlQ29sb3JNYXRyaXggaW49IlNvdXJjZUFscGhhIiB0eXBlPSJtYXRyaXgiIHZhbHVlcz0iMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMTI3IDAiIHJlc3VsdD0iaGFyZEFscGhhIi8+PGZlT2Zmc2V0Lz48ZmVHYXVzc2lhbkJsdXIgc3RkRGV2aWF0aW9uPSIyIi8+PGZlQ29tcG9zaXRlIGluMj0iaGFyZEFscGhhIiBvcGVyYXRvcj0iYXJpdGhtZXRpYyIgazI9Ii0xIiBrMz0iMSIvPjxmZUNvbG9yTWF0cml4IHR5cGU9Im1hdHJpeCIgdmFsdWVzPSIwIDAgMCAwIDEgMCAwIDAgMCAxIDAgMCAwIDAgMSAwIDAgMCAwLjUgMCIvPjxmZUJsZW5kIG1vZGU9Im5vcm1hbCIgaW4yPSJzaGFwZSIgcmVzdWx0PSJlZmZlY3QyX2lubmVyU2hhZG93Ii8+PC9maWx0ZXI+PC9kZWZzPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyNSwgNDQpIj48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTAgMThDMCA4LjA1ODg4IDguMDU4ODggMCAxOCAwSDExMkMxMjEuOTQxIDAgMTMwIDguMDU4ODggMTMwIDE4VjQ1LjE0ODNDMTMwIDQ5LjY4MzEgMTI5LjIyOSA1NC4xODQ4IDEyNy43MiA1OC40NjExTDExMC4yMzkgMTA3Ljk5MUMxMDcuNjk5IDExNS4xODcgMTAwLjg5NiAxMjAgOTMuMjY0NyAxMjBIMzYuNzM1M0MyOS4xMDM2IDEyMCAyMi4zMDE0IDExNS4xODcgMTkuNzYxNCAxMDcuOTkxTDIuMjgwMzggNTguNDYxMUMwLjc3MTExNyA1NC4xODQ4IDAgNDkuNjgzMSAwIDQ1LjE0ODNMMCAxOFoiIGZpbGw9IiMwMDc2REUiLz48bWFzayBpZD0iZmFjZVNxdWFyZTAzTWFzazAiIG1hc2stdHlwZT0iYWxwaGEiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjAiIHk9IjAiIHdpZHRoPSIxMzAiIGhlaWdodD0iMTIwIj48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTAgMThDMCA4LjA1ODg4IDguMDU4ODggMCAxOCAwSDExMkMxMjEuOTQxIDAgMTMwIDguMDU4ODggMTMwIDE4VjQ1LjE0ODNDMTMwIDQ5LjY4MzEgMTI5LjIyOSA1NC4xODQ4IDEyNy43MiA1OC40NjExTDExMC4yMzkgMTA3Ljk5MUMxMDcuNjk5IDExNS4xODcgMTAwLjg5NiAxMjAgOTMuMjY0NyAxMjBIMzYuNzM1M0MyOS4xMDM2IDEyMCAyMi4zMDE0IDExNS4xODcgMTkuNzYxNCAxMDcuOTkxTDIuMjgwMzggNTguNDYxMUMwLjc3MTExNyA1NC4xODQ4IDAgNDkuNjgzMSAwIDQ1LjE0ODNMMCAxOFoiIGZpbGw9IndoaXRlIi8+PC9tYXNrPjxnIG1hc2s9InVybCgjZmFjZVNxdWFyZTAzTWFzazApIj48cmVjdCB4PSItMiIgeT0iLTIiIHdpZHRoPSIxMzQiIGhlaWdodD0iMTI0IiBmaWxsPSIjMDM5QkU1Ii8+dW5kZWZpbmVkPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1MiwgMTI0KSI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xOCAxMC4yMjIyQzE4IDIxLjc4NDUgMjQuNDc0MSAyOCAzOCAyOEM1MS41MTgyIDI4IDU4IDIxLjY2MTUgNTggMTAuMjIyMkM1OCA5LjQ5NjIyIDU3LjE3MzkgOCA1NSA4QzM5LjI3MDcgOCAyOS4xOTE3IDggMjEgOEMxOC45NDkgOCAxOCA5LjM4NDc5IDE4IDEwLjIyMjJaIiBmaWxsPSJibGFjayIgZmlsbC1vcGFjaXR5PSIwLjgiLz48bWFzayBpZD0ibW91dGhTbWlsaWUwMk1hc2swIiBtYXNrLXR5cGU9ImFscGhhIiBtYXNrVW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4PSIxOCIgeT0iOCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTE4IDEwLjIyMjJDMTggMjEuNzg0NSAyNC40NzQxIDI4IDM4IDI4QzUxLjUxODIgMjggNTggMjEuNjYxNSA1OCAxMC4yMjIyQzU4IDkuNDk2MjIgNTcuMTczOSA4IDU1IDhDMzkuMjcwNyA4IDI5LjE5MTcgOCAyMSA4QzE4Ljk0OSA4IDE4IDkuMzg0NzkgMTggMTAuMjIyMloiIGZpbGw9IndoaXRlIi8+PC9tYXNrPjxnIG1hc2s9InVybCgjbW91dGhTbWlsaWUwMk1hc2swKSI+PHJlY3QgeD0iMzAiIHk9IjIiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNCIgcng9IjIiIGZpbGw9IndoaXRlIi8+PC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzOCwgNzYpIj48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTUyIDQ4QzY1LjI1NDggNDggNzYgMzcuMjU0OCA3NiAyNEM3NiAxMC43NDUyIDY1LjI1NDggMCA1MiAwQzM4Ljc0NTIgMCAyOCAxMC43NDUyIDI4IDI0QzI4IDM3LjI1NDggMzguNzQ1MiA0OCA1MiA0OFoiIGZpbGw9IndoaXRlIiBmaWxsLW9wYWNpdHk9IjAuNCIvPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNNTIgNDRDNjMuMDQ1NyA0NCA3MiAzNS4wNDU3IDcyIDI0QzcyIDEyLjk1NDMgNjMuMDQ1NyA0IDUyIDRDNDAuOTU0MyA0IDMyIDEyLjk1NDMgMzIgMjRDMzIgMzUuMDQ1NyA0MC45NTQzIDQ0IDUyIDQ0WiIgZmlsbD0iYmxhY2siIGZpbGwtb3BhY2l0eT0iMC44Ii8+PHBhdGggZD0iTTY0LjU3MjYgMTUuODE1M0M2NC44NzQzIDE2LjI3NzkgNjUuNDkzOSAxNi40MDgyIDY1Ljk1NjUgMTYuMTA2NEM2Ni40MTkgMTUuODA0NiA2Ni41NDk0IDE1LjE4NSA2Ni4yNDc2IDE0LjcyMjVMNjQuNTcyNiAxNS44MTUzWk02MS41ODE1IDkuOTU1NDdDNjEuMTI1NiA5LjY0Mzg0IDYwLjUwMzMgOS43NjA4NCA2MC4xOTE3IDEwLjIxNjhDNTkuODggMTAuNjcyOCA1OS45OTcgMTEuMjk1IDYwLjQ1MyAxMS42MDY3TDYxLjU4MTUgOS45NTU0N1pNNTYuMzU2OCA5LjY0MjIyQzU2Ljg4NTQgOS44MDIzNyA1Ny40NDM3IDkuNTAzNzMgNTcuNjAzOSA4Ljk3NTE4QzU3Ljc2NCA4LjQ0NjYzIDU3LjQ2NTQgNy44ODgzMiA1Ni45MzY4IDcuNzI4MTZMNTYuMzU2OCA5LjY0MjIyWk00NS43MjA2IDguMTk3NjlDNDUuMjA3NCA4LjQwMTc5IDQ0Ljk1NjkgOC45ODMyNiA0NS4xNjEgOS40OTY0NUM0NS4zNjUxIDEwLjAwOTYgNDUuOTQ2NSAxMC4yNjAyIDQ2LjQ1OTcgMTAuMDU2MUw0NS43MjA2IDguMTk3NjlaTTQxLjc2MDMgMTMuMDM4OEM0Mi4xNjM4IDEyLjY2MTcgNDIuMTg1MiAxMi4wMjg5IDQxLjgwODEgMTEuNjI1NEM0MS40MzEgMTEuMjIxOSA0MC43OTgxIDExLjIwMDUgNDAuMzk0NyAxMS41Nzc2TDQxLjc2MDMgMTMuMDM4OFpNMzYuNDU2NyAxNy4xMDUyQzM2LjIzMjUgMTcuNjA5OSAzNi40NTk5IDE4LjIwMDggMzYuOTY0NiAxOC40MjVDMzcuNDY5NCAxOC42NDkyIDM4LjA2MDMgMTguNDIxOCAzOC4yODQ1IDE3LjkxNzFMMzYuNDU2NyAxNy4xMDUyWk02Ni4yNDc2IDE0LjcyMjVDNjUuMDIxMiAxMi44NDI3IDYzLjQzMyAxMS4yMjA4IDYxLjU4MTUgOS45NTU0N0w2MC40NTMgMTEuNjA2N0M2Mi4wODc1IDEyLjcyMzggNjMuNDkgMTQuMTU1OSA2NC41NzI2IDE1LjgxNTNMNjYuMjQ3NiAxNC43MjI1Wk01Ni45MzY4IDcuNzI4MTZDNTUuMzczMyA3LjI1NDM4IDUzLjcxNTUgNyA1Mi4wMDAxIDdWOUM1My41MTY5IDkgNTQuOTc5MyA5LjIyNDggNTYuMzU2OCA5LjY0MjIyTDU2LjkzNjggNy43MjgxNlpNNTIuMDAwMSA3QzQ5Ljc4NCA3IDQ3LjY2NDYgNy40MjQ1NiA0NS43MjA2IDguMTk3NjlMNDYuNDU5NyAxMC4wNTYxQzQ4LjE3MjQgOS4zNzQ5NiA1MC4wNDEzIDkgNTIuMDAwMSA5VjdaTTQwLjM5NDcgMTEuNTc3NkMzOC43Mzc4IDEzLjEyNjEgMzcuMzkwNiAxNS4wMDI5IDM2LjQ1NjcgMTcuMTA1MkwzOC4yODQ1IDE3LjkxNzFDMzkuMTA4IDE2LjA2MzMgNDAuMjk2OCAxNC40MDY2IDQxLjc2MDMgMTMuMDM4OEw0MC4zOTQ3IDExLjU3NzZaIiBmaWxsPSJ3aGl0ZSIgZmlsbC1vcGFjaXR5PSIwLjkiLz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTUyIDM0QzU3LjUyMjggMzQgNjIgMjkuNTIyOCA2MiAyNEM2MiAxOC40NzcyIDU3LjUyMjggMTQgNTIgMTRDNDYuNDc3MiAxNCA0MiAxOC40NzcyIDQyIDI0QzQyIDI5LjUyMjggNDYuNDc3MiAzNCA1MiAzNFoiIGZpbGw9IiNDNjA4MEMiLz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTUyIDI4QzU0LjIwOTEgMjggNTYgMjYuMjA5MSA1NiAyNEM1NiAyMS43OTA5IDU0LjIwOTEgMjAgNTIgMjBDNDkuNzkwOSAyMCA0OCAyMS43OTA5IDQ4IDI0QzQ4IDI2LjIwOTEgNDkuNzkwOSAyOCA1MiAyOFoiIGZpbGw9IiNFRTkzMzciLz48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTUyIDI1QzUyLjU1MjMgMjUgNTMgMjQuNTUyMyA1MyAyNEM1MyAyMy40NDc3IDUyLjU1MjMgMjMgNTIgMjNDNTEuNDQ3NyAyMyA1MSAyMy40NDc3IDUxIDI0QzUxIDI0LjU1MjMgNTEuNDQ3NyAyNSA1MiAyNVoiIGZpbGw9IiNGNUY5NEYiLz48L2c+PC9zdmc+">
-                <span class="account-name">Host</span>
+                <span class="account-name" data-address="${address}">${name}</span>
             </div>
         </div>
         <div class="row">
-            <label for="to">To</label>
+            <label for="Transfer to">To</label>
             <div class="col2">
                 <img role="img" class="avatar" aria-label="account avatar" src="data:image/svg+xml;base64,PHN2ZyB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOmNjPSJodHRwOi8vY3JlYXRpdmVjb21tb25zLm9yZy9ucyMiIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyIgeG1sbnM6c3ZnPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTgwIDE4MCI+PG1ldGFkYXRhPjxyZGY6UkRGPjxjYzpXb3JrPjxkYzpmb3JtYXQ+aW1hZ2Uvc3ZnK3htbDwvZGM6Zm9ybWF0PjxkYzp0eXBlIHJkZjpyZXNvdXJjZT0iaHR0cDovL3B1cmwub3JnL2RjL2RjbWl0eXBlL1N0aWxsSW1hZ2UiLz48ZGM6dGl0bGU+Qm90dHRzPC9kYzp0aXRsZT48ZGM6Y3JlYXRvcj48Y2M6QWdlbnQ+PGRjOnRpdGxlPlBhYmxvIFN0YW5sZXk8L2RjOnRpdGxlPjwvY2M6QWdlbnQ+PC9kYzpjcmVhdG9yPjxkYzpzb3VyY2U+aHR0cHM6Ly9ib3R0dHMuY29tLzwvZGM6c291cmNlPjxjYzpsaWNlbnNlIHJkZjpyZXNvdXJjZT0iaHR0cHM6Ly9ib3R0dHMuY29tLyIvPjxkYzpjb250cmlidXRvcj48Y2M6QWdlbnQ+PGRjOnRpdGxlPkZsb3JpYW4gS8O2cm5lcjwvZGM6dGl0bGU+PC9jYzpBZ2VudD48L2RjOmNvbnRyaWJ1dG9yPjwvY2M6V29yaz48L3JkZjpSREY+PC9tZXRhZGF0YT48cmVjdCBmaWxsPSJ0cmFuc3BhcmVudCIgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHg9IjAiIHk9IjAiLz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLCA2NikiPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTQuOTgwOSAyMC45MTQxQzE0IDIyLjgzOTMgMTQgMjUuMzU5NSAxNCAzMC40VjQ1LjZDMTQgNTAuNjQwNSAxNCA1My4xNjA3IDE0Ljk4MDkgNTUuMDg1OUMxNS44NDM4IDU2Ljc3OTQgMTcuMjIwNiA1OC4xNTYyIDE4LjkxNDEgNTkuMDE5MUMyMC44MzkzIDYwIDIzLjM1OTUgNjAgMjguNCA2MEgzNS42QzQwLjY0MDUgNjAgNDMuMTYwNyA2MCA0NS4wODU5IDU5LjAxOTFDNDYuNzc5NCA1OC4xNTYyIDQ4LjE1NjIgNTYuNzc5NCA0OS4wMTkxIDU1LjA4NTlDNTAgNTMuMTYwNyA1MCA1MC42NDA1IDUwIDQ1LjZWMzAuNEM1MCAyNS4zNTk1IDUwIDIyLjgzOTMgNDkuMDE5MSAyMC45MTQxQzQ4LjE1NjIgMTkuMjIwNiA0Ni43Nzk0IDE3Ljg0MzggNDUuMDg1OSAxNi45ODA5QzQzLjE2MDcgMTYgNDAuNjQwNSAxNiAzNS42IDE2SDI4LjRDMjMuMzU5NSAxNiAyMC44MzkzIDE2IDE4LjkxNDEgMTYuOTgwOUMxNy4yMjA2IDE3Ljg0MzggMTUuODQzOCAxOS4yMjA2IDE0Ljk4MDkgMjAuOTE0MVpNMTMwLjk4MSAyMC45MTQxQzEzMCAyMi44MzkzIDEzMCAyNS4zNTk1IDEzMCAzMC40VjQ1LjZDMTMwIDUwLjY0MDUgMTMwIDUzLjE2MDcgMTMwLjk4MSA1NS4wODU5QzEzMS44NDQgNTYuNzc5NCAxMzMuMjIxIDU4LjE1NjIgMTM0LjkxNCA1OS4wMTkxQzEzNi44MzkgNjAgMTM5LjM2IDYwIDE0NC40IDYwSDE1MS42QzE1Ni42NCA2MCAxNTkuMTYxIDYwIDE2MS4wODYgNTkuMDE5MUMxNjIuNzc5IDU4LjE1NjIgMTY0LjE1NiA1Ni43Nzk0IDE2NS4wMTkgNTUuMDg1OUMxNjYgNTMuMTYwNyAxNjYgNTAuNjQwNSAxNjYgNDUuNlYzMC40QzE2NiAyNS4zNTk1IDE2NiAyMi44MzkzIDE2NS4wMTkgMjAuOTE0MUMxNjQuMTU2IDE5LjIyMDYgMTYyLjc3OSAxNy44NDM4IDE2MS4wODYgMTYuOTgwOUMxNTkuMTYxIDE2IDE1Ni42NCAxNiAxNTEuNiAxNkgxNDQuNEMxMzkuMzYgMTYgMTM2LjgzOSAxNiAxMzQuOTE0IDE2Ljk4MDlDMTMzLjIyMSAxNy44NDM4IDEzMS44NDQgMTkuMjIwNiAxMzAuOTgxIDIwLjkxNDFaIiBmaWxsPSIjMDA3NkRFIi8+PG1hc2sgaWQ9InNpZGVzU3F1YXJlTWFzazAiIG1hc2stdHlwZT0iYWxwaGEiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjE0IiB5PSIxNiIgd2lkdGg9IjE1MiIgaGVpZ2h0PSI0NCI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xNC45ODA5IDIwLjkxNDFDMTQgMjIuODM5MyAxNCAyNS4zNTk1IDE0IDMwLjRWNDUuNkMxNCA1MC42NDA1IDE0IDUzLjE2MDcgMTQuOTgwOSA1NS4wODU5QzE1Ljg0MzggNTYuNzc5NCAxNy4yMjA2IDU4LjE1NjIgMTguOTE0MSA1OS4wMTkxQzIwLjgzOTMgNjAgMjMuMzU5NSA2MCAyOC40IDYwSDM1LjZDNDAuNjQwNSA2MCA0My4xNjA3IDYwIDQ1LjA4NTkgNTkuMDE5MUM0Ni43Nzk0IDU4LjE1NjIgNDguMTU2MiA1Ni43Nzk0IDQ5LjAxOTEgNTUuMDg1OUM1MCA1My4xNjA3IDUwIDUwLjY0MDUgNTAgNDUuNlYzMC40QzUwIDI1LjM1OTUgNTAgMjIuODM5MyA0OS4wMTkxIDIwLjkxNDFDNDguMTU2MiAxOS4yMjA2IDQ2Ljc3OTQgMTcuODQzOCA0NS4wODU5IDE2Ljk4MDlDNDMuMTYwNyAxNiA0MC42NDA1IDE2IDM1LjYgMTZIMjguNEMyMy4zNTk1IDE2IDIwLjgzOTMgMTYgMTguOTE0MSAxNi45ODA5QzE3LjIyMDYgMTcuODQzOCAxNS44NDM4IDE5LjIyMDYgMTQuOTgwOSAyMC45MTQxWk0xMzAuOTgxIDIwLjkxNDFDMTMwIDIyLjgzOTMgMTMwIDI1LjM1OTUgMTMwIDMwLjRWNDUuNkMxMzAgNTAuNjQwNSAxMzAgNTMuMTYwNyAxMzAuOTgxIDU1LjA4NTlDMTMxLjg0NCA1Ni43Nzk0IDEzMy4yMjEgNTguMTU2MiAxMzQuOTE0IDU5LjAxOTFDMTM2LjgzOSA2MCAxMzkuMzYgNjAgMTQ0LjQgNjBIMTUxLjZDMTU2LjY0IDYwIDE1OS4xNjEgNjAgMTYxLjA4NiA1OS4wMTkxQzE2Mi43NzkgNTguMTU2MiAxNjQuMTU2IDU2Ljc3OTQgMTY1LjAxOSA1NS4wODU5QzE2NiA1My4xNjA3IDE2NiA1MC42NDA1IDE2NiA0NS42VjMwLjRDMTY2IDI1LjM1OTUgMTY2IDIyLjgzOTMgMTY1LjAxOSAyMC45MTQxQzE2NC4xNTYgMTkuMjIwNiAxNjIuNzc5IDE3Ljg0MzggMTYxLjA4NiAxNi45ODA5QzE1OS4xNjEgMTYgMTU2LjY0IDE2IDE1MS42IDE2SDE0NC40QzEzOS4zNiAxNiAxMzYuODM5IDE2IDEzNC45MTQgMTYuOTgwOUMxMzMuMjIxIDE3Ljg0MzggMTMxLjg0NCAxOS4yMjA2IDEzMC45ODEgMjAuOTE0MVoiIGZpbGw9IndoaXRlIi8+PC9tYXNrPjxnIG1hc2s9InVybCgjc2lkZXNTcXVhcmVNYXNrMCkiPjxyZWN0IHdpZHRoPSIxODAiIGhlaWdodD0iNzYiIGZpbGw9IiNGRjcwNDMiLz48cmVjdCB5PSIzOCIgd2lkdGg9IjE4MCIgaGVpZ2h0PSIzOCIgZmlsbD0iYmxhY2siIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MSwgMCkiPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNNTAgMTNDMzguOTU0MyAxMyAzMCAyMS45NTQzIDMwIDMzVjM2SDIxQzIwLjQ0NzcgMzYgMjAgMzYuNDQ3NyAyMCAzN1Y1MUMyMCA1MS41NTIzIDIwLjQ0NzcgNTIgMjEgNTJINzlDNzkuNTUyMyA1MiA4MCA1MS41NTIzIDgwIDUxVjM3QzgwIDM2LjQ0NzcgNzkuNTUyMyAzNiA3OSAzNkg3MFYzM0M3MCAyMS45NTQzIDYxLjA0NTcgMTMgNTAgMTNaIiBmaWxsPSIjNTlDNEZGIi8+PG1hc2sgaWQ9InRvcEJ1bGIwMU1hc2swIiBtYXNrLXR5cGU9ImFscGhhIiBtYXNrVW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4PSIyMCIgeT0iMTMiIHdpZHRoPSI2MCIgaGVpZ2h0PSIzOSI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik01MCAxM0MzOC45NTQzIDEzIDMwIDIxLjk1NDMgMzAgMzNWMzZIMjFDMjAuNDQ3NyAzNiAyMCAzNi40NDc3IDIwIDM3VjUxQzIwIDUxLjU1MjMgMjAuNDQ3NyA1MiAyMSA1Mkg3OUM3OS41NTIzIDUyIDgwIDUxLjU1MjMgODAgNTFWMzdDODAgMzYuNDQ3NyA3OS41NTIzIDM2IDc5IDM2SDcwVjMzQzcwIDIxLjk1NDMgNjEuMDQ1NyAxMyA1MCAxM1oiIGZpbGw9IndoaXRlIi8+PC9tYXNrPjxnIG1hc2s9InVybCgjdG9wQnVsYjAxTWFzazApIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUyIiBmaWxsPSIjRkY3MDQzIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik01MCAzNkM1Mi4yMDkxIDM2IDU0IDM1LjAyOCA1NCAzMS43MTQzQzU0IDI4LjQwMDYgNTIuMjA5MSAyNCA1MCAyNEM0Ny43OTA5IDI0IDQ2IDI4LjQwMDYgNDYgMzEuNzE0M0M0NiAzNS4wMjggNDcuNzkwOSAzNiA1MCAzNloiIGZpbGw9IndoaXRlIiBmaWxsLW9wYWNpdHk9IjAuNiIvPjxyZWN0IHg9IjIwIiB5PSIxMyIgd2lkdGg9IjYwIiBoZWlnaHQ9IjIzIiBmaWxsPSJ3aGl0ZSIgZmlsbC1vcGFjaXR5PSIwLjQiLz48cGF0aCBkPSJNNTAgMTQuNUM0OS40NDc3IDE0LjUgNDkgMTQuOTQ3NyA0OSAxNS41QzQ5IDE2LjA1MjMgNDkuNDQ3NyAxNi41IDUwIDE2LjVWMTQuNVpNNjEuNjk0MSAyMS42ODc1QzYyLjA2NDkgMjIuMDk2OCA2Mi42OTczIDIyLjEyODEgNjMuMTA2NiAyMS43NTczQzYzLjUxNTkgMjEuMzg2NSA2My41NDcxIDIwLjc1NDEgNjMuMTc2MyAyMC4zNDQ4TDYxLjY5NDEgMjEuNjg3NVpNNjUuNzU5NSAyNC4wNDczQzY1LjUwMzUgMjMuNTU3OSA2NC44OTkzIDIzLjM2ODYgNjQuNDA5OSAyMy42MjQ2QzYzLjkyMDUgMjMuODgwNiA2My43MzEzIDI0LjQ4NDggNjMuOTg3MyAyNC45NzQyTDY1Ljc1OTUgMjQuMDQ3M1pNNjUuNDI0OCAyOC45NTU5QzY1LjU0MDQgMjkuNDk1OSA2Ni4wNzE5IDI5Ljg0IDY2LjYxMTkgMjkuNzI0NEM2Ny4xNTIgMjkuNjA4OCA2Ny40OTYxIDI5LjA3NzMgNjcuMzgwNSAyOC41MzczTDY1LjQyNDggMjguOTU1OVpNNTAgMTYuNUM1NC42Mzc1IDE2LjUgNTguODA2NSAxOC40OTk5IDYxLjY5NDEgMjEuNjg3NUw2My4xNzYzIDIwLjM0NDhDNTkuOTI1NiAxNi43NTYzIDU1LjIyNTYgMTQuNSA1MCAxNC41VjE2LjVaTTYzLjk4NzMgMjQuOTc0MkM2NC42MzU3IDI2LjIxMzkgNjUuMTIzOSAyNy41NTAxIDY1LjQyNDggMjguOTU1OUw2Ny4zODA1IDI4LjUzNzNDNjcuMDQxMSAyNi45NTE4IDY2LjQ5MDQgMjUuNDQ0OCA2NS43NTk1IDI0LjA0NzNMNjMuOTg3MyAyNC45NzQyWiIgZmlsbD0id2hpdGUiLz48L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI1LCA0NCkiPjxyZWN0IHdpZHRoPSIxMzAiIGhlaWdodD0iMTIwIiByeD0iMTgiIGZpbGw9IiMwMDc2REUiLz48bWFzayBpZD0iZmFjZVNxdWFyZTAxTWFzazAiIG1hc2stdHlwZT0iYWxwaGEiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjAiIHk9IjAiIHdpZHRoPSIxMzAiIGhlaWdodD0iMTIwIj48cmVjdCB3aWR0aD0iMTMwIiBoZWlnaHQ9IjEyMCIgcng9IjE4IiBmaWxsPSJ3aGl0ZSIvPjwvbWFzaz48ZyBtYXNrPSJ1cmwoI2ZhY2VTcXVhcmUwMU1hc2swKSI+PHJlY3QgeD0iLTIiIHk9Ii0yIiB3aWR0aD0iMTM0IiBoZWlnaHQ9IjEyNCIgZmlsbD0iI0Y0NTExRSIvPnVuZGVmaW5lZDwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTIsIDEyNCkiPjxyZWN0IHg9IjEyIiB5PSIxMiIgd2lkdGg9IjQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9ImJsYWNrIiBmaWxsLW9wYWNpdHk9IjAuNiIvPjxyZWN0IHg9IjM2IiB5PSIxMiIgd2lkdGg9IjQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9ImJsYWNrIiBmaWxsLW9wYWNpdHk9IjAuNiIvPjxyZWN0IHg9IjI0IiB5PSIxMiIgd2lkdGg9IjQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9ImJsYWNrIiBmaWxsLW9wYWNpdHk9IjAuNiIvPjxyZWN0IHg9IjQ4IiB5PSIxMiIgd2lkdGg9IjQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9ImJsYWNrIiBmaWxsLW9wYWNpdHk9IjAuNiIvPjxyZWN0IHg9IjYwIiB5PSIxMiIgd2lkdGg9IjQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9ImJsYWNrIiBmaWxsLW9wYWNpdHk9IjAuNiIvPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzOCwgNzYpIj48cmVjdCB5PSI0IiB3aWR0aD0iMTA0IiBoZWlnaHQ9IjQyIiByeD0iNCIgZmlsbD0iYmxhY2siIGZpbGwtb3BhY2l0eT0iMC44Ii8+PHJlY3QgeD0iMjgiIHk9IjI1IiB3aWR0aD0iMTAiIGhlaWdodD0iMTEiIHJ4PSIyIiBmaWxsPSIjOEJEREZGIi8+PHJlY3QgeD0iNjYiIHk9IjI1IiB3aWR0aD0iMTAiIGhlaWdodD0iMTEiIHJ4PSIyIiBmaWxsPSIjOEJEREZGIi8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0yMSA0SDI5TDEyIDQ2SDRMMjEgNFoiIGZpbGw9IndoaXRlIiBmaWxsLW9wYWNpdHk9IjAuNCIvPjwvZz48L3N2Zz4=">
-                <input role="input" type="text" aria-label="Transfer to account address" aria-require="true" value="12XV6KZCEwF9D1rsM8aCu21UP3z9t95ZCg">
+                ${transferTo}
             </div>
         </div>
         <div class="row">
             <label for="price">$</label>
-            <input role="input"  type="number" aria-label="Price" aria-require="true">
+            ${transferPrice}
         </div>
         <div class="row">
             <label for="fee">Fee</label>
-            <div class="fee">0.2</div>
+            <div class="fee">${fee}</div>
         </div>
         <div class="row">
             <div class="actions" role="action">
@@ -380,11 +414,12 @@ function transfer(protocol) {
 
     return transferElement
 
-    function handleCancel () {
-        console.log('cancel');
+    function handleCancel (name) {
+        sender({from: name, flow: 'transfer / button', type: 'click', fn: 'handleCancel', file, line: 50})
     }
-    function handleTransfer () {
-        console.log('Transfer');
+    function handleTransfer (name) {
+        const body = {sender: accountName, address: account, toAccount: transferTo.value, price: transferPrice.value, fee}
+        sender({from: name, flow: 'transfer / button', type: 'click', body, fn: 'handleTransfer', file, line: 54})
     }
     function get (msg) {
         console.log( msg );
@@ -396,6 +431,7 @@ function transfer(protocol) {
 const styleSheet = require('../../src/node_modules/supportCSSStyleSheet')
 const bel = require('bel')
 const file = require('path').basename(__filename)
+const icon = require('../../src/node_modules/icon')
 
 module.exports = actions
 
@@ -403,17 +439,26 @@ function actions (protocol) {
     const sender = protocol (get)
     const e = document.createElement('i-actions')
     const root = e.attachShadow({mode: 'closed'})
+    const debugIcon = new icon({name: 'debug'})
     const showAllButton = bel`<button role="button" aria-current="true" aria-label="Show all" class="btn" data-active="true" data-item="all">Show all modals</button>`
     const planPlayButton = bel`<button role="button" aria-label="Plan play" class="btn" data-active="false" data-item="default modal">Plan play</button>`
     const createButton = bel`<button role="button" aria-label="Create new account" class="btn" data-active="false" data-item="step modal">Create new account</button>`
     const transferButton = bel`<button role="button" aria-label="Transfer" class="btn" data-active="false" data-item="action modal">Transfer</button>`
     const helpButton = bel`<button role="button" aria-label="Help" class="btn" data-active="false" data-item="help modal">Help</button>`
     const actionBar = bel`<div class="actions" onclick="${(e) => handleTabs(e, actionBar)}">${showAllButton}${planPlayButton}${createButton}${transferButton}${helpButton}</div>`
-    root.append(actionBar)
+    const deubgButton = bel`<button role="button" aria-label="Debug mode" class="btn debug" data-debug="true" onclick=${()=> debugModeOpen(deubgButton)}>${debugIcon}</button>`
+    // style loades first
     styleSheet(root, style)
+    // shadow loades second
+    root.append(actionBar, deubgButton)
     return e
 
-    function handleTabs(e, target) {
+    function debugModeOpen (b) {
+        b.dataset.debug =  b.dataset.debug === 'false' ? 'true' : 'false'
+        sender({from: 'debug', flow: 'actions', type: 'click', state: b.dataset.debug, fn: 'debugModeOpen', file, line: 28})
+    }
+
+    function handleTabs (e, target) {
         const current = e.target.textContent
         const buttons = [...target.children]
         buttons.map( b => {
@@ -423,7 +468,7 @@ function actions (protocol) {
             if (current === b.textContent) {
                 b.dataset.active = true
                 b.setAttribute('aria-current', true)
-                sender({from: current, flow: 'actions', type: 'click', fn: 'handleTabs', body: b.dataset.item.split(' ')[0], file, line: 29})
+                sender({from: `${current} button`, flow: 'actions', type: 'click', fn: 'handleTabs', body: b.dataset.item.split(' ')[0], file, line: 41})
             } 
        })
     }
@@ -446,8 +491,8 @@ const style = `
     --button-bgColor: var(--color-greyEF);
     --button-padding: 6px 12px;
     font-size: var(--button-size);
-    color: var(--button-color);
-    background-color: var(--button-bgColor);
+    color: hsl( var(--button-color) );
+    background-color: hsl( var(--button-bgColor) );
     padding: var(--button-padding);
     border: none;
     border-radius: 4px;
@@ -459,11 +504,38 @@ const style = `
     --button-bgColor: var(--color-black);
     cursor: default;
 }
+:host(i-actions) .debug {
+    --button-bgColor: var(--color-black);
+    --button-padding: 4px;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 999;
+    border-radius: 0;
+}
+:host(i-actions) .debug .icon {
+    width: 24px;
+    height: 24px;
+}
+:host(i-actions) .debug svg {
+    width: 100%;
+    height: auto;
+}
+:host(i-actions) .debug svg g {
+    --svg-fill: var(--color-grey88);
+    fill: hsl( var(--svg-fill) );
+}
+:host(i-actions) .debug[data-debug="true"] {
+    --button-bgColor: var(--color-red);
+}
+:host(i-actions) .debug[data-debug="true"] svg g {
+    --svg-fill: var(--color-black);
+}
 `
 }).call(this)}).call(this,"/demo/node_modules/actions.js")
-},{"../../src/node_modules/supportCSSStyleSheet":41,"bel":9,"path":33}],7:[function(require,module,exports){
+},{"../../src/node_modules/icon":39,"../../src/node_modules/supportCSSStyleSheet":41,"bel":9,"path":33}],7:[function(require,module,exports){
 const createAccount = require('./CreateAccount')
-const runPlan = require('PlanPlay')
+const planPlay = require('PlanPlay')
 const transfer = require('./Transfer')
 const help = require('./Help')
 
@@ -471,53 +543,55 @@ const newAccountOpt = (protocol) => {
     return {
         name: 'create new account',
         header: 'Create new account',
-        body: createAccount( protocol ),
+        body: createAccount( {page: 'USER', name: this.name}, protocol ),
         ui: 'step-modal',
         theme: {
             style: `
-            :host(i-modal[data-ui="custom"]) {
-                --modal-bgColor: hsl(29, 100%, 70%)
+            :host(i-modal[data-ui="custom"]) .i-modal {
+                --modal-bgColor: 29, 100%, 70%;
+                --modal-padding: 20px;
             }
             `,
             props: {
                 // bgColor: 'var(--color-blue)'
             },
             header: {
-                style: `
-                /* :host(i-header[data-ui="step-modal"]) {
-                    --modal-header-bgColor: hsl(202, 100%, 50%);
-                } */
-                :host(i-header[data-ui="custom"]) {
-                    --modal-header-bgColor: hsl(29, 100%, 50%);
-                    --modal-header-padding: 20px;
-                }
-                :host(i-header[data-ui="custom"]) h1 {
-                    --modal-header-color: hsl(50, 100%, 50%);
-                }
-                `,
+                // style: `
+                // /* :host(i-header[data-ui="step-modal"]) {
+                //     --modal-header-bgColor: 202, var(--r);
+                // } */
+                // :host(i-header[data-ui="custom"]) {
+                //     --modal-header-bgColor: 29, var(--r);
+                //     --modal-header-padding: 20px;
+                // }
+                // :host(i-header[data-ui="custom"]) h1 {
+                //     --modal-header-color: 50, var(--r);
+                // }
+                // `,
                 // props: {
                 //     size: 'var(--size28)',
-                //     color: 'var(--color-black)',
-                //     bgColor: 'var(--color-purple)'
+                //     color: 'var(--color-white)',
+                //     bgColor: 'var(--color-purple)',
+                //     padding: '15px;'
                 // }
             },
             body: {
                 // style: `
                 // :host(i-body[data-ui="step-modal"]) {
-                //     --modal-body-bgColor: hsl(200, 100%, 50%);
+                //     --modal-body-bgColor: 200, var(--r);
                 // }
                 // :host(i-body[data-ui="custom"]) {
                 //     background-color: hsl(330, 2%, 22%);
                 //     padding: 30px 20px;
                 // }
                 // :host(i-body[data-ui="custom"]) label {
-                //     color: hsl(0, 0%, 100%);
+                //     color: hsl(var(--color-black));
                 // }
                 // :host(i-body[data-ui="custom"]) span {
                 //     color: hsl(0, 0%, 60%);
                 // }
                 // :host(i-body[data-ui="custom"]) .row:focus-within label {
-                //     --label-focus: hsl(29, 100%, 58%);
+                //     --label-focus: 29, 100%, 58%;
                 // }
                 // :host(i-body[data-ui="custom"]) input[name="address"]:disabled {
                 //     color: hsl(0, 0%, 60%);
@@ -546,48 +620,50 @@ const newAccountOpt = (protocol) => {
 }
 
 const planPlayOpt = (protocol) => {
-    return {
-        name: 'run plan',
+    const obj =  {
+        name: 'plan1',
         header: 'Your small step is our big step',
-        body: runPlan('plan1', protocol),
+        body: planPlay({name: 'Plan1', page: 'PLAN'}, protocol),
     }
+    return obj
 }
 
 const transferOpt = (protocol) => {
-    return {
+    const obj = {
         name: 'transfer',
         header: 'Transfer',
-        body: transfer(protocol),
+        body: transfer({account: {name: 'Host', address: '1LKSTwS7AoGUJqLfF4webRBHvzQ7qFHU8C'}, page: 'PLAN'}, protocol),
         ui: 'action-modal'
     }
+    return obj
 }
 
 const helpOpt = (protocol) => {
     return {
         name: 'help',
         header: 'Plan summary list',
-        body: help(protocol),
+        body: help({page: 'USER', name: 'plan-summary-list'}, protocol),
         ui: 'help-modal',
         theme: {
             // style: `
             // :host(i-modal[data-ui="help-modal"]) .i-modal {
-            //     --modal-bgColor: hsl(50, 100%, 50%)
+            //     --modal-bgColor: 50, var(--r);
             // }
             // `,
             // props: {
             //     bgColor: 'var(--color-greyE2)'
             // },
-            body:{
+            // body:{
                 // style:  `
                 // :host(i-body[data-ui="help-modal"]) {
-                //     --modal-body-bgColor: hsl(0, 0%, 100%)
+                //     --modal-body-bgColor: var(--color-blue);
                 // }
                 // `,
-                // props: {
-                //     color: 'var(--color-white)',
-                //     bgColor: 'var(--color-purple)'
-                // }
-            }
+            //     props: {
+            //         color: 'var(--color-white)',
+            //         bgColor: 'var(--color-purple)'
+            //     }
+            // }
         }
         
     }
@@ -2414,19 +2490,21 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],35:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
 const iheader = require('i-header')
 const ibody = require('i-body')
 const nocontent = require('i-nocontent')
 const styleSheet = require('supportCSSStyleSheet')
 const icon = require('icon')
+const file = require('path').basename(__filename)
 
 // const myElement = require('test')
 module.exports = component
 
-function component({name = 'modal', flow, header, body = nocontent(), ui = 'default', theme }, protocol) {
-    const widget = 'ui-modal'
+function component({page, name = 'modal', flow = 'ui-modal', header, body = nocontent(), ui = 'default', theme }, protocol) {
     const sender = protocol( get )
+    sender({page, from: name, flow, type: 'ready', fn: 'component', file, line: 15 })
     // insert CSS style
     const customStyle = theme ? theme.style : ''
     // set CSS variables
@@ -2446,14 +2524,16 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
             ${iheader({label: 'create new account', content: header, ui, theme: theme ? theme.header : void 0 })}
             ${ibody({label: 'modal body', content: body === '' ? nocontent() : body, ui, theme: theme ? theme.body : void 0 })}
         </div>`
+        // style loades first
         styleSheet(root, style)
+        // shadow loades second
         root.append(el)
         return modal
     }
 
     function handleClose (modal) {
         modal.remove()
-        return sender({flow: flow ? `${flow}/${widget}/${ui}` : `${widget}/${ui}`, from: name, type: 'closed'})
+        sender({flow: `${flow}/${ui}`, from: name, type: 'closed', file, fn: 'handleClose', line: 43})
     }
 
     function get(m) {
@@ -2491,38 +2571,38 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
         --modal-padding: ${padding ? padding : '0'};
         padding: var(--modal-padding);
-        color: var(--modal-color);
-        background-color: var(--modal-bgColor);
+        color: hsl( var(--modal-color) );
+        background-color: hsl( var(--modal-bgColor) );
         border: var(--modal-border);
     }
     :host(i-modal) .i-modal:focus, :host(i-modal) .i-modal:focus-within {
         --outline-border-width: 4px; 
         --outline-style: ridge;
         --outline-color: var(--color-greyE2);
-        --outline: var(--outline-border-width) var(--outline-style) var(--outline-color);
+        --outline: var(--outline-border-width) var(--outline-style) hsl( var(--outline-color) );
         outline: var(--outline);
     }
     :host(i-modal[data-ui="default"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-border-width: ${borderWidth ? borderWidth : '1px'};
         --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
         --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
-        --modal-border: var(--modal-border-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-border: var(--modal-border-width) var(--modal-border-style) hsl( var(--modal-border-color) );
         --modal-padding: ${padding ? padding : '30px 34px'};
     }
     :host(i-modal[data-ui="step-modal"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-padding: ${padding ? padding : '0'};
     }
     :host(i-modal[data-ui="action-modal"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-border-top-width: ${borderWidth ? borderWidth : '8px'};
         --modal-border-style: ${borderStyle ? borderStyle : 'solid'};
         --modal-border-color: ${borderColor ? borderColor : 'var(--color-black)'};
-        --modal-border-top: var(--modal-border-top-width) var(--modal-border-style) var(--modal-border-color);
+        --modal-border-top: var(--modal-border-top-width) var(--modal-border-style) hsl( var(--modal-border-color) );
         --modal-padding: ${padding ? padding : '25px 50px'};
         border-top: var(--modal-border-top);
     }
@@ -2531,7 +2611,7 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         outline: none;
     }
     :host(i-modal[data-ui="help-modal"]) .i-modal {
-        --modal-color: ${color ? color : 'var(--primiary-color)'};
+        --modal-color: ${color ? color : 'var(--primary-color)'};
         --modal-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
         --modal-border-color: ${borderColor ? borderColor : 'var(--color-greyE2)'};
         --modal-border-width: ${borderWidth ? borderWidth : '1px'};
@@ -2545,13 +2625,14 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
         outline: none;
     }
     :host(i-modal) button[data-ui="close"] {
+        --bgColor: var(--color-white);
         position: absolute;
         right: -7px;
         top: -7px;
         border-radius: 50%;
         width: 22px;
         height: 22px;
-        background-color: var(--color-white);
+        background-color: hsl(var(--bgColor));
         border: none;
         box-shadow: 0px 3px 6px hsla(0, 0%, 0%, 0.16);
     }
@@ -2560,7 +2641,8 @@ function component({name = 'modal', flow, header, body = nocontent(), ui = 'defa
     `
     return layout(style)
 }
-},{"bel":9,"i-body":36,"i-header":37,"i-nocontent":38,"icon":39,"supportCSSStyleSheet":41}],36:[function(require,module,exports){
+}).call(this)}).call(this,"/src/index.js")
+},{"bel":9,"i-body":36,"i-header":37,"i-nocontent":38,"icon":39,"path":33,"supportCSSStyleSheet":41}],36:[function(require,module,exports){
 const styleSheet = require('./supportCSSStyleSheet')
 module.exports = body
 
@@ -2593,13 +2675,14 @@ function body ({content, ui, theme}) {
     :host(i-body) {
         --modal-body-size: ${size ? size : 'var(--size14)'};
         --modal-body-color: ${color ? color : 'var(--color-grey88)'};
-        --modal-body-bgColor: ${bgColor ? bgColor : 'transparent'};
+        --modal-body-bgColor: ${bgColor ? bgColor : 'var(--color-white)'};
+        --opacity: 0;
         display: grid;
         grid-template-rows: auto;
         grid-template-columns: 1fr;
-        background-color: var(--modal-body-bgColor);
+        background-color: hsla( var(--modal-body-bgColor), var(--opacity) );
         align-items: center;
-        color: var(--modal-body-color);
+        color: hsl( var(--modal-body-color) );
         font-size: var(--modal-body-size);
     }
     :host(i-body) button {
@@ -2625,20 +2708,20 @@ function body ({content, ui, theme}) {
         --color: ${color ? color : 'var(--primary-color)'};
         --size: ${size ? size : 'var(--size14)'};
         display: grid;
-        color: var(--color);
+        color: hsl( var(--color) );
         font-size: var(--size);
         word-break: break-all;
     }
     :host(i-body) .row:focus-within label {
         --label-focus: ${labelFocusColor ? labelFocusColor : 'var(--color-black)'};
-        color: var(--label-focus);
+        color: hsl( var(--label-focus) );
     }
     :host(i-body) label {
         --label-color: ${labelColor ? labelColor : 'var(--color-grey66)'};
         --label-size: ${ labelSize ? labelSize : 'var(--size14)'};
         grid-row-start: 1;
         align-self: center;
-        color: var(--label-color);
+        color: hls( var(--label-color) );
         font-size: var(--label-size);
         line-height: 1.5;
         transition: color .25s linear;
@@ -2649,18 +2732,18 @@ function body ({content, ui, theme}) {
         --input-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
         --input-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
         --input-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
-        --input-border: var(--input-border-width) var(--input-border-color) var(--input-border-style);
+        --input-border: var(--input-border-width) var(--input-border-style) hsl( var(--input-border-color) );
         --input-radius: var(--primary-input-radius);
         --input-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
         --input-padding: ${inputPadding ? inputPadding : '6px'};
         grid-column-start: 2;
-        color: var(--input-color);
+        color: hsl( var(--input-color) );
         font-size: var(--input-size);
         line-height: inherit;
         border: var(--input-border);
         border-radius: var(--input-radius);
         padding: var(--input-padding);
-        background-color: var(--input-bgColor);
+        background-color: hsl( var(--input-bgColor) );
         transition: border .6s, background-color .6s, box-sahdow .6s linear;
     }
     :host(i-body) .col3.address {
@@ -2676,10 +2759,10 @@ function body ({content, ui, theme}) {
         --limit-color: ${limitColor ? limitColor : 'var(--color-grey88)'};
         align-self: center;
         font-size: var(--limit-size);
-        color: var(--limit-color);
+        color: hsl( var(--limit-color) );
     }
     :host(i-body) input[name="address"]:disabled {
-        color: var(--color-black);
+        color: hsl( var(--color-black) );
         border: none;
         background-color: transparent;
     }
@@ -2689,10 +2772,10 @@ function body ({content, ui, theme}) {
         --shaodw-v-offset: 0;
         --shadow-blur: ${shadowBlur ? shadowBlur : '8px'};
         --shadow-color: ${shadowColor ? shadowColor : 'hsla(0, 0%, 0%, .5)'};
-        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) var(--shadow-color);
+        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) hsl( var(--shadow-color) );
         -webkit-appearance: none; 
         appearance: none;
-        border-color: var(--input-focus);
+        border-color: hsl( var(--input-focus) );
         box-shadow: var(--shadow); 
         outline: none;
     }
@@ -2700,17 +2783,19 @@ function body ({content, ui, theme}) {
         --col-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
         --col-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
         --col-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
-        --col-border: var(--col-border-width) var(--col-border-style) var(--col-border-color);
+        --col-border: var(--col-border-width) var(--col-border-style) hsl( var(--col-border-color) );
         --col-radius: var(--primary-input-radius);
         --col-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
+        --opacity: 1;
         display: grid;
         grid-template-rows: auto;
         grid-template-columns: 24px auto;
         border: var(--col-border);
         border-radius: var(--col-radius);
-        background-color: var(--col-bgColor);
+        background-color: hsla( var(--col-bgColor), var(--opacity) );
         align-items: center;
         padding: 0 10px;
+        transition: border 0.6s, background-color 0.6s ease-in-out;
     }
     :host(i-body) .col2 .avatar {
         grid-row-start: 1;
@@ -2726,7 +2811,7 @@ function body ({content, ui, theme}) {
         --col-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
         --col-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
         --col-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
-        --col-border: var(--col-border-width) var(--col-border-style) var(--col-border-color);
+        --col-border: var(--col-border-width) var(--col-border-style) hsl( var(--col-border-color) );
         --col-radius: var(--primary-input-radius);
         --col-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
         display: grid;
@@ -2734,17 +2819,18 @@ function body ({content, ui, theme}) {
         grid-template-columns: repeat(2, 1fr) 50px;
         border: var(--col-border);
         border-radius: var(--col-radius);
-        background-color: var(--col-bgColor);
+        background-color: hsl( var(--col-bgColor) );
         align-items: center;
+        transition: border 0.6s, background-color 0.6s ease-in-out;
     }
     :host(i-body) .col2:focus-within, :host(i-body) .col3:focus-within {
         --focus-color: ${inputFocusColor ? inputFocusColor : 'var(--color-black)'};
         --shaodw-n-offset: 0;
         --shaodw-v-offset: 0;
         --shadow-blur: ${shadowBlur ? shadowBlur : '8px'};
-        --shadow-color: ${shadowColor ? shadowColor : 'hsla(0, 0%, 0%, .5)'};
-        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) var(--shadow-color);
-        border-color: var(--focus-color);
+        --shadow-color: ${shadowColor ? shadowColor : '0, 0%, 50%'};
+        --shadow: var(--shaodw-n-offset) var(--shaodw-v-offset) var(--shadow-blur) hsl( var(--shadow-color) );
+        border-color: hsl( var(--focus-color) );
         box-shadow: var(--shadow);
     }
     :host(i-body) .col3 input {
@@ -2775,7 +2861,7 @@ function body ({content, ui, theme}) {
         --select-border-width: ${inputBorderWidth ? inputBorderWidth : '1px'};
         --select-border-style: ${inputBorderStyle ? inputBorderStyle : 'solid'};
         --select-border-color: ${inputBorderColor ? inputBorderColor : 'var(--color-greyCB)'};
-        --select-border: var(--select-border-width) var(--select-border-style) var(--select-border-color);
+        --select-border: var(--select-border-width) var(--select-border-style) hsl( var(--select-border-color) );
         --select-radius: var(--primary-input-radius);
         --select-bgColor: ${inputBgColor ? inputBgColor : 'var(--color-white)'};
         --select-padding: ${inputPadding ? inputPadding : '6px'};
@@ -2786,7 +2872,7 @@ function body ({content, ui, theme}) {
         padding: var(--select-padding);
         -webkit-appearance: none; 
         appearance: none;
-        background-color: var(--select-bgColor);
+        background-color: hsl( var(--select-bgColor) );
         transition: border .6s, background-color .6s, box-sahdow .6s linear;
     }
     :host(i-body) select:focus {
@@ -2811,7 +2897,7 @@ function body ({content, ui, theme}) {
         --modal-body-border-width: ${borderWidth ? borderWidth : '1px'};
         --modal-body-border-style: ${borderStyle ? borderStyle : 'solid'};
         --modal-body-border-color: ${borderColor ? borderColor : 'var(--color-greyCB)'};
-        --modal-body-border: var(--modal-body-border-width) var(--modal-body-border-style) var(--modal-body-border-color);
+        --modal-body-border: var(--modal-body-border-width) var(--modal-body-border-style) hsl( var(--modal-body-border-color) );
         --modal-body-padding: 30px 10px 30px 30px;
         border: var(--modal-body-border);
         padding: var(--modal-body-padding);
@@ -2820,7 +2906,6 @@ function body ({content, ui, theme}) {
     :host(i-body[data-ui="help-modal"]) {
         --modal-body-size: ${size ? size : 'var(--size14)'};
         --modal-body-color: ${color ? color : 'var(--color-grey33)'};
-        --modal-body-bgColor: ${bgColor ? bgColor : 'transparent' };
     }
     :host(i-body[data-ui="help-modal"]) footer {
         display: grid;
@@ -2920,12 +3005,12 @@ const bel = require('bel')
 const styleSheet = require('./supportCSSStyleSheet')
 module.exports = header
 
-function header({count = 1, label, content, ui, theme}) {
+function header ({count = 1, label, content, ui, theme}) {
     // insert CSS style
     const customStyle = theme ? theme.style : ''
     // set CSS variables
     if (theme && theme.props) { 
-        var {size, color, bgColor, padding, marginBottom, 
+        var {size, color, bgColor, padding, opacity, marginBottom, 
             badgeSize, badgeColor, badgeBgColor, badgeWeight, 
         } = theme.props
     }
@@ -2944,17 +3029,18 @@ function header({count = 1, label, content, ui, theme}) {
     
     const style = `
     :host(i-header) {
+        --modal-header-bgColor: ${bgColor ? bgColor : 'var(--color-black)'};
+        --modal-header-padding: ${padding ? padding : '0'};
+        --opacity: 0;
         display: grid;
         justify-content: center;
-        --modal-header-bgColor: ${bgColor ? bgColor : 'transparent'};
-        --modal-header-padding: ${padding ? padding : '0'};
-        background-color: var(--modal-header-bgColor);
+        background-color: hsla( var(--modal-header-bgColor), var(--opacity) );
         padding: var(--modal-header-padding);
     }
     :host(i-header) h1 {
         --modal-header-color: ${color ? color : 'var(--primary-color)'};
         --modal-header-size: ${size ? size : 'var(--size22)'};
-        color: var(--modal-header-color);
+        color: hsl( var(--modal-header-color) );
         font-size: var(--modal-header-size);
         margin: 0;
     }
@@ -2963,12 +3049,13 @@ function header({count = 1, label, content, ui, theme}) {
     :host(i-header[data-ui="step-modal"]) {
         --modal-header-bgColor: ${bgColor ? bgColor : 'var(--color-greyF2)'};
         --modal-header-padding: ${padding ? padding : '20px 0'};
+        --opacity: ${opacity ? opacity : '1'};
     }
     :host(i-header[data-ui="action-modal"]) {
-        margin-bottom: 30px;
+        margin-bottom: ${marginBottom ? marginBottom : '30px'};
     }
     :host(i-header[data-ui="help-modal"]) {
-        margin-bottom: 12px;
+        margin-bottom: ${marginBottom ? marginBottom : '12px'};
         justify-content: left;
     }
     :host(i-header[data-ui="help-modal"]) h1 {
@@ -2988,8 +3075,8 @@ function header({count = 1, label, content, ui, theme}) {
         height: 20px;
         font-size: var(--badgeSize);
         font-weight: var(--badgeWeight);
-        color: var(--badgeColor);
-        background-color: var(--badgeBgColor);
+        color: hsl( var(--badgeColor) );
+        background-color: hsl( var(--badgeBgColor) );
         border-radius: 50%;
         justify-content: center;
         align-items: center;
@@ -3038,30 +3125,180 @@ function icon ({classname, name}) {
 module.exports = icon
 
 },{"datdot-ui-graphic":29}],40:[function(require,module,exports){
+(function (__filename){(function (){
 const styleSheet = require('./supportCSSStyleSheet')
+const bel = require('bel')
+const file = require('path').basename(__filename)
+
 module.exports = logs
 
-function logs (e) {
+function logs ( protocol ) {
+    const sender = protocol ( get )
     const ilog = document.createElement('i-log')
     const root = ilog.attachShadow({mode: 'closed'})
+    const title = bel`<h4>Logs</h4>`
+    const content = bel`<section class="content">${title}</section>`
+    const logList = document.createElement('log-list')
     styleSheet(root, style)
-    root.innerHTML = "<h1>Debug mode</h1>"
+    content.append(logList)
+    root.append(content)
+
+    document.addEventListener('DOMContentLoaded', () => {
+        logList.scrollTop = logList.scrollHeight
+    })
+
     return ilog
+
+    function get ({page = 'Demo', from, flow, type, body, fn, file, line}) {
+        try {
+            const f = bel`<span class="flow">${flow} :: </span>`
+            var log = bel`
+            <aside class="list">
+                <span aria-label=${page} class="page">${page}</span>
+                <div class="log">
+                    <span aria-label="info" class="info">${f} ${from}</span>
+                    <span aria-type="${type}" class="type">${type}</span>
+                    <span aira-label="message" class="message">${typeof body === 'object' ? JSON.stringify(body) : body}</span>
+                    ${fn && bel`<span aria-type="${fn}" class="function">Fn: ${fn}</span>`}
+                </div>
+                <div class="file">${file} : ${line}</div>
+            </aside>
+            `
+            logList.append(log)
+            logList.scrollTop = logList.scrollHeight
+            
+        } catch (error) {
+            document.addEventListener('DOMContentLoaded', () => {
+                logList.append(log)
+            })
+            return false
+        }
+    }
 }
 
 const style = `
 :host(i-log) {
+}
+:host(i-log) .content {
+    --bgColor: var(--color-dark);
+    --opacity: 1;
     position: fixed;
-    right: 0;
     top: 0;
-    width: 40vw;
-    height: 100vh;
-    font-size: 12px;
+    right: 0;
+    width: calc(40% - 30px);
+    height: 100%;
+    font-size: var(--size12);
     color: #fff;
-    background-color: hsl(223, 13%, 20%);
+    background-color: hsla( var(--bgColor), var(--opacity));
+}
+:host(i-log) h4 {
+    --bgColor: var(--color-deep-black);
+    --opacity: 1;
+    margin: 0;
+    padding: 10px 10px;
+    color: #fff;
+    background-color: hsl( var(--bgColor), var(--opacity) );
+}
+:host(i-log) log-list {
+    display: block;
+    height: calc(100% - 34px);
+    overflow-y: auto;
+    margin: 8px;
+}
+:host(i-log) .list {
+    --bgColor: 0, 0%, 30%;
+    --opacity: 0.25;
+    display: grid;
+    grid-template-rows: auto;
+    grid-template-columns: minmax(auto, 60px) auto;
+    grid-column-gap: 10px;
+    padding: 2px 10px 4px 10px;
+    margin-bottom: 4px;
+    background-color: hsla( var(--bgColor), var(--opacity) );
+    border-radius: 8px;
+    transition: background-color 0.6s ease-in-out;
+}
+:host(i-log) log-list .list:last-child {
+    --bgColor: var(--color-verdigris);
+    --opacity: 0.5;
+}
+:host(i-log) .log {
+    grid-column-start: 2;
+    line-height: 2.2;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+:host(i-log) .info {}
+:host(i-log) .type {
+    --color: var(--color-greyD9);
+    --bgColor: var(--color-black);
+    --opacity: 0.25;
+    color: hsl( var(--color) );
+    background-color: hsla( var(--bgColor), var(--opacity) );
+    padding: 2px 10px;
+    border-radius: 8px;
+}
+:host(i-log) log-list .list:last-child .type {
+}
+:host(i-log) .page {
+    --color: var(--color-maximum-blue-green);
+    display: grid;
+    color: hsl( var(--color) );
+    border: 1px solid hsl( var(--color) );
+    padding: 2px 4px;
+    border-radius: 4px;
+    grid-row-start: span 2;
+    justify-content: center;
+    align-items: center;
+}
+:host(i-log) .file {
+    --color: var(--color-grey70);
+    display: grid;
+    color: hsl( var(--color) );
+    justify-content: right;
+}
+:host(i-log) log-list .list:last-child .file {
+    --color: var(--color-white);
+}
+:host(i-log) [aria-type="click"] {
+    --color: var(--color-black);
+    --bgColor: 44, 100%, 55%;
+    --opacity: 1;
+}
+:host(i-log) [aria-type="opened"] {
+    --bgColor: var(--color-slate-blue);
+    --opacity: 1;
+}
+:host(i-log) [aria-type="closed"] {
+    --bgColor: var(--color-flame);
+    --opacity: 1;
+}
+:host(i-log) log-list .list:last-child [aria-type="ready"] {
+    --bgColor: var(--color-deep-black);
+    --opacity: 0.3;
+}
+:host(i-log) .function {
+    --color: 0, 0%, 70%;
+    color: var(--color);
+}
+:host(i-log) log-list .list:last-child .function {
+    --color: var(--color-white);
+}
+:host(i-log) [aria-label="demo"] {}
+@media (max-width: 960px) {
+    :host(i-log) .content {
+        top: unset;
+        right: unset;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 30vh;
+        padding-bottom: 10px;
+    }
 }
 `
-},{"./supportCSSStyleSheet":41}],41:[function(require,module,exports){
+}).call(this)}).call(this,"/src/node_modules/logs.js")
+},{"./supportCSSStyleSheet":41,"bel":9,"path":33}],41:[function(require,module,exports){
 module.exports = supportCSSStyleSheet
 function supportCSSStyleSheet (root, style) {
     return (() => {
