@@ -10,19 +10,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fionataeyang/web-component-demo.git"
+    "url": "git+https://github.com/datdotorg/web-component-demo.git"
   },
   "keywords": [
     "title",
     "component",
     "widget"
   ],
-  "author": "fionataeyang",
+  "author": "datdotorg",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/fionataeyang/web-component-demo/issues"
+    "url": "https://github.com/datdotorg/web-component-demo/issues"
   },
-  "homepage": "https://github.com/fionataeyang/web-component-demo#readme",
+  "homepage": "https://github.com/datdotorg/web-component-demo#readme",
   "devDependencies": {
     "browserify": "^17.0.0",
     "budo": "^11.6.4"
@@ -30,6 +30,6 @@
   "dependencies": {
     "bel": "^6.0.0",
     "csjs-inject": "^1.0.1",
-    "datdot-ui-graphic": "github:fionataeyang/datdot-ui-graphic"
+    "datdot-ui-graphic": "github:datdotorg/datdot-ui-graphic"
   }
 }
